@@ -1,0 +1,91 @@
+import { STORAGE_KEYS, storage } from "./storage"
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000"
+
+export interface AuthUser {
+  id: string
+  email: string
+  name?: string
+}
+
+interface LoginResponse {
+  accessToken: string
+  refreshToken: string
+  user: AuthUser
+}
+
+const handleResponse = async <T>(response: Response): Promise<T> => {
+  if (!response.ok) {
+    const message = (await response.json().catch(() => ({}))).message || "Error autenticando"
+    throw new Error(message)
+  }
+  return response.json() as Promise<T>
+}
+
+export const auth = {
+  getCurrentUser(): AuthUser | null {
+    return storage.get<AuthUser>(STORAGE_KEYS.USER)
+  },
+
+  setCurrentUser(user: AuthUser): void {
+    storage.set(STORAGE_KEYS.USER, user)
+  },
+
+  getAccessToken(): string | null {
+    return storage.get<string>(STORAGE_KEYS.ACCESS_TOKEN)
+  },
+
+  getRefreshToken(): string | null {
+    return storage.get<string>(STORAGE_KEYS.REFRESH_TOKEN)
+  },
+
+  setSession(accessToken: string, refreshToken: string): void {
+    storage.set(STORAGE_KEYS.ACCESS_TOKEN, accessToken)
+    storage.set(STORAGE_KEYS.REFRESH_TOKEN, refreshToken)
+  },
+
+  clearSession(): void {
+    storage.remove(STORAGE_KEYS.ACCESS_TOKEN)
+    storage.remove(STORAGE_KEYS.REFRESH_TOKEN)
+    storage.remove(STORAGE_KEYS.USER)
+  },
+
+  async login(email: string, password: string): Promise<AuthUser> {
+    const response = await fetch(`${API_URL}/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    })
+
+    const data = await handleResponse<LoginResponse>(response)
+    this.setSession(data.accessToken, data.refreshToken)
+    this.setCurrentUser(data.user)
+    return data.user
+  },
+
+  async refreshAccessToken(): Promise<string | null> {
+    const refreshToken = this.getRefreshToken()
+    if (!refreshToken) return null
+
+    const response = await fetch(`${API_URL}/auth/refresh`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refreshToken }),
+    })
+
+    const data = await handleResponse<{ accessToken: string }>(response)
+    storage.set(STORAGE_KEYS.ACCESS_TOKEN, data.accessToken)
+    return data.accessToken
+  },
+
+  signOut(): void {
+    this.clearSession()
+    if (typeof window !== "undefined") {
+      window.location.href = "/login"
+    }
+  },
+
+  isAuthenticated(): boolean {
+    return Boolean(this.getAccessToken())
+  },
+}

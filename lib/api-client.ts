@@ -1,0 +1,225 @@
+import { auth } from "./auth"
+import type { Asset, Debt, Expense, Income, PaymentPeriod } from "./types"
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000"
+
+type ApiResponse<T> = { data: T }
+
+type NewExpensePayload = {
+  description: string
+  amount: number
+  payment_date: string
+  payment_period: PaymentPeriod
+  semester: number
+  year: number
+  notes?: string
+  is_paid?: boolean
+  amount_paid?: number
+}
+
+type UpdateExpensePayload = Partial<NewExpensePayload> & {
+  amount_paid?: number
+  paid_date?: string | null
+}
+
+type ExpensePaymentPayload = {
+  amount: number
+  notes?: string
+}
+
+type NewIncomePayload = {
+  person_name: string
+  amount: number
+  payment_date: number
+  month: number
+  year: number
+  notes?: string
+}
+
+type NewDebtPayload = {
+  debt_type: string
+  entity_name: string
+  original_amount: number
+  current_balance: number
+  monthly_payment?: number
+  payment_day?: number
+  start_date?: string
+  end_date?: string
+  interest_rate?: number
+  status?: "active" | "paid" | "pending"
+  notes?: string
+}
+
+type DebtPaymentPayload = {
+  amount: number
+  payment_date: string
+  notes?: string
+}
+
+type NewAssetPayload = {
+  account_name: string
+  account_type: Asset["account_type"]
+  current_balance: number
+  currency_code?: string
+}
+
+type UpdateAssetPayload = Partial<Omit<NewAssetPayload, "current_balance">> & {
+  current_balance?: number
+}
+
+const buildHeaders = (body?: BodyInit | null, customHeaders?: HeadersInit) => {
+  const headers = new Headers(customHeaders)
+  if (body && !headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json")
+  }
+
+  const token = auth.getAccessToken()
+  if (token) {
+    headers.set("Authorization", `Bearer ${token}`)
+  }
+  return headers
+}
+
+const parseError = async (response: Response) => {
+  try {
+    const payload = await response.json()
+    return payload.message || response.statusText
+  } catch {
+    return response.statusText
+  }
+}
+
+const request = async <T>(path: string, options: RequestInit = {}, retry = true): Promise<T> => {
+  const headers = buildHeaders(options.body ?? null, options.headers)
+  const response = await fetch(`${API_URL}${path}`, { ...options, headers })
+
+  if (response.status === 401 && retry) {
+    const newToken = await auth.refreshAccessToken()
+    if (newToken) {
+      headers.set("Authorization", `Bearer ${newToken}`)
+      const retryResponse = await fetch(`${API_URL}${path}`, { ...options, headers })
+      if (!retryResponse.ok) {
+        throw new Error(await parseError(retryResponse))
+      }
+      return (await retryResponse.json()) as T
+    }
+
+    auth.signOut()
+    throw new Error("Sesión expirada. Inicia sesión nuevamente.")
+  }
+
+  if (!response.ok) {
+    throw new Error(await parseError(response))
+  }
+
+  if (response.status === 204) {
+    return {} as T
+  }
+
+  return (await response.json()) as T
+}
+
+export const apiClient = {
+  // Assets
+  getAssets: async () => {
+    const response = await request<ApiResponse<Asset[]>>("/assets")
+    return response.data
+  },
+  createAsset: async (payload: NewAssetPayload) => {
+    const response = await request<ApiResponse<Asset>>("/assets", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    })
+    return response.data
+  },
+  updateAsset: async (id: string, payload: UpdateAssetPayload) => {
+    const response = await request<ApiResponse<Asset>>(`/assets/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    })
+    return response.data
+  },
+  deleteAsset: async (id: string) => {
+    await request(`/assets/${id}`, { method: "DELETE" })
+  },
+
+  // Expenses
+  getExpenses: async () => {
+    const response = await request<ApiResponse<Expense[]>>("/expenses")
+    return response.data
+  },
+  createExpense: async (payload: NewExpensePayload) => {
+    const response = await request<ApiResponse<Expense>>("/expenses", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    })
+    return response.data
+  },
+  updateExpense: async (id: string, payload: UpdateExpensePayload) => {
+    const response = await request<ApiResponse<Expense>>(`/expenses/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    })
+    return response.data
+  },
+  deleteExpense: async (id: string) => {
+    await request(`/expenses/${id}`, { method: "DELETE" })
+  },
+  registerExpensePayment: async (id: string, payload: ExpensePaymentPayload) => {
+    const response = await request<ApiResponse<Expense>>(`/expenses/${id}/payments`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    })
+    return response.data
+  },
+
+  // Incomes
+  getIncomes: async () => {
+    const response = await request<ApiResponse<Income[]>>("/incomes")
+    return response.data
+  },
+  createIncome: async (payload: NewIncomePayload) => {
+    const response = await request<ApiResponse<Income>>("/incomes", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    })
+    return response.data
+  },
+  deleteIncome: async (id: string) => {
+    await request(`/incomes/${id}`, { method: "DELETE" })
+  },
+
+  // Debts
+  getDebts: async () => {
+    const response = await request<ApiResponse<Debt[]>>("/debts")
+    return response.data
+  },
+  createDebt: async (payload: NewDebtPayload) => {
+    const response = await request<ApiResponse<Debt>>("/debts", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    })
+    return response.data
+  },
+  deleteDebt: async (id: string) => {
+    await request(`/debts/${id}`, { method: "DELETE" })
+  },
+  addDebtPayment: async (id: string, payload: DebtPaymentPayload) => {
+    const response = await request<ApiResponse<Debt>>(`/debts/${id}/payments`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    })
+    return response.data
+  },
+}
+
+export type {
+  NewDebtPayload,
+  NewExpensePayload,
+  UpdateExpensePayload,
+  ExpensePaymentPayload,
+  NewIncomePayload,
+  DebtPaymentPayload,
+  NewAssetPayload,
+  UpdateAssetPayload,
+}
