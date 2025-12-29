@@ -7,16 +7,20 @@ import { Button } from "@/components/ui/button"
 import type { Debt } from "@/lib/types"
 import { calculations } from "@/lib/calculations"
 import { AddPaymentDialog } from "./add-payment-dialog"
+import { EditDebtDialog } from "./edit-debt-dialog"
 import { Calendar, Loader2, TrendingDown, Trash2 } from "lucide-react"
+import type { UpdateDebtPayload } from "@/lib/api-client"
 
 interface DebtCardProps {
   debt: Debt
   onRegisterPayment: (data: { debtId: string; amount: number; payment_date: string; notes?: string }) => Promise<void>
   onDelete: (id: string) => Promise<void>
+  onUpdate: (id: string, payload: UpdateDebtPayload) => Promise<void>
   isDeleting?: boolean
+  isUpdating?: boolean
 }
 
-export function DebtCard({ debt, onRegisterPayment, onDelete, isDeleting }: DebtCardProps) {
+export function DebtCard({ debt, onRegisterPayment, onDelete, onUpdate, isDeleting, isUpdating }: DebtCardProps) {
   const progress = ((debt.original_amount - debt.current_balance) / debt.original_amount) * 100
   const monthsLeft = calculations.calculateMonthsUntilPaidOff(debt)
 
@@ -54,15 +58,22 @@ export function DebtCard({ debt, onRegisterPayment, onDelete, isDeleting }: Debt
               {getStatusBadge()}
             </CardDescription>
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="text-red-600 hover:text-red-700 hover:bg-red-50"
-            onClick={() => onDelete(debt.id)}
-            disabled={isDeleting}
-          >
-            {isDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-          </Button>
+          <div className="flex items-center gap-1">
+            <EditDebtDialog
+              debt={debt}
+              onSubmit={(payload) => onUpdate(debt.id, payload)}
+              isUpdating={isUpdating}
+            />
+            <Button
+              variant="ghost"
+              size="icon"
+              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+              onClick={() => onDelete(debt.id)}
+              disabled={isDeleting}
+            >
+              {isDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+            </Button>
+          </div>
         </div>
       </CardHeader>
 

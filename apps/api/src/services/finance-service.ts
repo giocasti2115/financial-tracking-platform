@@ -5,6 +5,7 @@ import type {
   AssetUpdateInput,
   DebtInput,
   DebtPaymentInput,
+  DebtUpdateInput,
   ExpenseInput,
   ExpensePaymentInput,
   ExpenseUpdateInput,
@@ -54,6 +55,15 @@ const mapAsset = (row: Record<string, any>) => ({
   currency_code: row.currency_code
 });
 
+const ensureCurrencyExists = async (code: string) => {
+  await query(
+    `INSERT INTO currencies (code, name)
+     VALUES ($1, $2)
+     ON CONFLICT (code) DO NOTHING`,
+    [code, code]
+  );
+};
+
 const buildUpdateSet = (payload: Record<string, unknown>) => {
   const entries = Object.entries(payload).filter(([, value]) => value !== undefined);
   const assignments: string[] = [];
@@ -81,11 +91,13 @@ export const FinanceService = {
   },
 
   createAsset: async (userId: string, payload: AssetInput) => {
+    const currencyCode = (payload.currency_code ?? 'COP').toUpperCase();
+    await ensureCurrencyExists(currencyCode);
     const result = await query(
       `INSERT INTO accounts (user_id, currency_code, account_type, name, starting_balance, current_balance)
        VALUES ($1, $2, $3, $4, $5, $5)
        RETURNING id, user_id, name, account_type, current_balance, currency_code, created_at, updated_at` ,
-      [userId, (payload.currency_code ?? 'COP').toUpperCase(), payload.account_type, payload.account_name, payload.current_balance]
+      [userId, currencyCode, payload.account_type, payload.account_name, payload.current_balance]
     );
     return mapAsset(result.rows[0]);
   },
@@ -326,6 +338,67 @@ export const FinanceService = {
       ]
     );
     return mapDebt(result.rows[0]);
+  },
+
+  updateDebt: async (userId: string, debtId: string, payload: DebtUpdateInput) => {
+    const normalized: Record<string, unknown> = {};
+
+    if (payload.debt_type !== undefined) {
+      normalized.debt_type = payload.debt_type;
+    }
+    if (payload.entity_name !== undefined) {
+      normalized.entity_name = payload.entity_name;
+    }
+    if (payload.original_amount !== undefined) {
+      normalized.original_amount = payload.original_amount;
+    }
+    if (payload.current_balance !== undefined) {
+      normalized.current_balance = payload.current_balance;
+    }
+    if (payload.monthly_payment !== undefined) {
+      normalized.monthly_payment = payload.monthly_payment;
+    }
+    if (payload.payment_day !== undefined) {
+      normalized.payment_day = payload.payment_day;
+    }
+    if (payload.start_date !== undefined) {
+      normalized.start_date = payload.start_date;
+    }
+    if (payload.end_date !== undefined) {
+      normalized.end_date = payload.end_date;
+    }
+    if (payload.interest_rate !== undefined) {
+      normalized.interest_rate = payload.interest_rate;
+    }
+    if (payload.status !== undefined) {
+      normalized.status = payload.status;
+    }
+    if (payload.notes !== undefined) {
+      normalized.notes = payload.notes;
+    }
+
+    if (Object.keys(normalized).length === 0) {
+      const existing = await query('SELECT * FROM debts WHERE id = $1 AND user_id = $2', [debtId, userId]);
+      if (!existing.rowCount) {
+        throw createError(404, 'Debt not found');
+      }
+      return mapDebt(existing.rows[0]);
+    }
+
+    const { assignments, values } = buildUpdateSet(normalized);
+    const updated = await query(
+      `UPDATE debts
+       SET ${assignments.join(', ')}
+       WHERE id = $1 AND user_id = $2
+       RETURNING *` ,
+      [debtId, userId, ...values]
+    );
+
+    if (!updated.rowCount) {
+      throw createError(404, 'Debt not found');
+    }
+
+    return mapDebt(updated.rows[0]);
   },
 
   deleteDebt: async (userId: string, debtId: string) => {

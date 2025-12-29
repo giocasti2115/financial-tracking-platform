@@ -1,6 +1,8 @@
 import { STORAGE_KEYS, storage } from "./storage"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000"
+const NETWORK_ERROR_MESSAGE =
+  "No pudimos conectar con el servidor. Verifica tu conexión e intenta nuevamente."
 
 export interface AuthUser {
   id: string
@@ -12,6 +14,17 @@ interface LoginResponse {
   accessToken: string
   refreshToken: string
   user: AuthUser
+}
+
+const safeFetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+  try {
+    return await fetch(input, init)
+  } catch (error) {
+    if (process.env.NODE_ENV !== "production") {
+      console.error("[auth] Error de red", error)
+    }
+    throw new Error(NETWORK_ERROR_MESSAGE)
+  }
 }
 
 const handleResponse = async <T>(response: Response): Promise<T> => {
@@ -51,7 +64,7 @@ export const auth = {
   },
 
   async login(email: string, password: string): Promise<AuthUser> {
-    const response = await fetch(`${API_URL}/auth/login`, {
+    const response = await safeFetch(`${API_URL}/auth/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password }),
@@ -67,7 +80,7 @@ export const auth = {
     const refreshToken = this.getRefreshToken()
     if (!refreshToken) return null
 
-    const response = await fetch(`${API_URL}/auth/refresh`, {
+    const response = await safeFetch(`${API_URL}/auth/refresh`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ refreshToken }),

@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { authMiddleware } from '../middleware/auth.js';
-import { debtInputSchema, debtPaymentSchema } from '../schemas/finance.js';
+import { debtInputSchema, debtPaymentSchema, debtUpdateSchema } from '../schemas/finance.js';
 import { FinanceService } from '../services/finance-service.js';
 import { asyncHandler } from '../utils/async-handler.js';
 
@@ -22,6 +22,15 @@ debtsRouter.post(
     const payload = debtInputSchema.parse(req.body);
     const created = await FinanceService.createDebt(req.auth!.userId, payload);
     res.status(201).json({ data: created });
+  })
+);
+
+debtsRouter.patch(
+  '/:id',
+  asyncHandler(async (req, res) => {
+    const payload = debtUpdateSchema.parse(req.body);
+    const updated = await FinanceService.updateDebt(req.auth!.userId, req.params.id, payload);
+    res.json({ data: updated });
   })
 );
 

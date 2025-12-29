@@ -56,6 +56,8 @@ export const debtPaymentSchema = z.object({
   notes: z.string().optional()
 });
 
+export const debtUpdateSchema = debtInputSchema.partial();
+
 export const assetInputSchema = z.object({
   account_name: z.string().min(1),
   account_type: accountTypeSchema,
@@ -75,5 +77,6 @@ export type ExpensePaymentInput = z.infer<typeof expensePaymentSchema>;
 export type IncomeInput = z.infer<typeof incomeInputSchema>;
 export type DebtInput = z.infer<typeof debtInputSchema>;
 export type DebtPaymentInput = z.infer<typeof debtPaymentSchema>;
+export type DebtUpdateInput = z.infer<typeof debtUpdateSchema>;
 export type AssetInput = z.infer<typeof assetInputSchema>;
 export type AssetUpdateInput = z.infer<typeof assetUpdateSchema>;

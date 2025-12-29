@@ -14,6 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { apiClient } from "@/lib/api-client"
+import type { UpdateDebtPayload } from "@/lib/api-client"
 
 type DebtPaymentForm = {
   debtId: string
@@ -32,6 +33,7 @@ export default function DebtsPage() {
     enabled: !authLoading && Boolean(user),
   })
   const [deletingDebtId, setDeletingDebtId] = useState<string | null>(null)
+  const [updatingDebtId, setUpdatingDebtId] = useState<string | null>(null)
 
   const { data: debts = [], isLoading: debtsLoading } = useQuery<Debt[]>({
     queryKey: ["debts"],
@@ -52,6 +54,12 @@ export default function DebtsPage() {
   const addDebtPaymentMutation = useMutation({
     mutationFn: ({ debtId, amount, payment_date, notes }: DebtPaymentForm) =>
       apiClient.addDebtPayment(debtId, { amount, payment_date, notes }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["debts"] }),
+  })
+
+  const updateDebtMutation = useMutation({
+    mutationFn: ({ debtId, payload }: { debtId: string; payload: UpdateDebtPayload }) =>
+      apiClient.updateDebt(debtId, payload),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["debts"] }),
   })
 
@@ -89,6 +97,17 @@ export default function DebtsPage() {
       await addDebtPaymentMutation.mutateAsync({ debtId, amount, payment_date, notes })
     } catch (error) {
       alert(error instanceof Error ? error.message : "Ocurrió un error al registrar el pago.")
+    }
+  }
+
+  const handleUpdateDebt = async (debtId: string, payload: UpdateDebtPayload) => {
+    try {
+      setUpdatingDebtId(debtId)
+      await updateDebtMutation.mutateAsync({ debtId, payload })
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Ocurrió un error al actualizar la deuda.")
+    } finally {
+      setUpdatingDebtId(null)
     }
   }
 
@@ -169,7 +188,9 @@ export default function DebtsPage() {
                     debt={debt}
                     onRegisterPayment={handleRegisterPayment}
                     onDelete={handleDeleteDebt}
+                    onUpdate={handleUpdateDebt}
                     isDeleting={deletingDebtId === debt.id}
+                    isUpdating={updatingDebtId === debt.id}
                   />
                 ))}
               </div>
@@ -194,7 +215,9 @@ export default function DebtsPage() {
                     debt={debt}
                     onRegisterPayment={handleRegisterPayment}
                     onDelete={handleDeleteDebt}
+                    onUpdate={handleUpdateDebt}
                     isDeleting={deletingDebtId === debt.id}
+                    isUpdating={updatingDebtId === debt.id}
                   />
                 ))}
               </div>
@@ -216,7 +239,9 @@ export default function DebtsPage() {
                     debt={debt}
                     onRegisterPayment={handleRegisterPayment}
                     onDelete={handleDeleteDebt}
+                    onUpdate={handleUpdateDebt}
                     isDeleting={deletingDebtId === debt.id}
+                    isUpdating={updatingDebtId === debt.id}
                   />
                 ))}
               </div>

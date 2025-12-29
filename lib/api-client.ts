@@ -2,6 +2,8 @@ import { auth } from "./auth"
 import type { Asset, Debt, Expense, Income, PaymentPeriod } from "./types"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000"
+const NETWORK_ERROR_MESSAGE =
+  "No pudimos conectar con el servidor. Verifica tu conexión e intenta nuevamente."
 
 type ApiResponse<T> = { data: T }
 
@@ -50,6 +52,8 @@ type NewDebtPayload = {
   notes?: string
 }
 
+type UpdateDebtPayload = Partial<NewDebtPayload>
+
 type DebtPaymentPayload = {
   amount: number
   payment_date: string
@@ -65,6 +69,17 @@ type NewAssetPayload = {
 
 type UpdateAssetPayload = Partial<Omit<NewAssetPayload, "current_balance">> & {
   current_balance?: number
+}
+
+const safeFetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+  try {
+    return await fetch(input, init)
+  } catch (error) {
+    if (process.env.NODE_ENV !== "production") {
+      console.error("[api-client] Error de red", error)
+    }
+    throw new Error(NETWORK_ERROR_MESSAGE)
+  }
 }
 
 const buildHeaders = (body?: BodyInit | null, customHeaders?: HeadersInit) => {
@@ -91,13 +106,13 @@ const parseError = async (response: Response) => {
 
 const request = async <T>(path: string, options: RequestInit = {}, retry = true): Promise<T> => {
   const headers = buildHeaders(options.body ?? null, options.headers)
-  const response = await fetch(`${API_URL}${path}`, { ...options, headers })
+  const response = await safeFetch(`${API_URL}${path}`, { ...options, headers })
 
   if (response.status === 401 && retry) {
     const newToken = await auth.refreshAccessToken()
     if (newToken) {
       headers.set("Authorization", `Bearer ${newToken}`)
-      const retryResponse = await fetch(`${API_URL}${path}`, { ...options, headers })
+      const retryResponse = await safeFetch(`${API_URL}${path}`, { ...options, headers })
       if (!retryResponse.ok) {
         throw new Error(await parseError(retryResponse))
       }
@@ -201,6 +216,13 @@ export const apiClient = {
     })
     return response.data
   },
+  updateDebt: async (id: string, payload: UpdateDebtPayload) => {
+    const response = await request<ApiResponse<Debt>>(`/debts/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    })
+    return response.data
+  },
   deleteDebt: async (id: string) => {
     await request(`/debts/${id}`, { method: "DELETE" })
   },
@@ -222,4 +244,5 @@ export type {
   DebtPaymentPayload,
   NewAssetPayload,
   UpdateAssetPayload,
+  UpdateDebtPayload,
 }
