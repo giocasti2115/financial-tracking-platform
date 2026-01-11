@@ -159,7 +159,7 @@ export default function AssetsPage() {
                     <Label htmlFor="account_name">Nombre de la Cuenta *</Label>
                     <Input
                       id="account_name"
-                      placeholder="Ej: Coop-Geo, Pibank"
+                      placeholder="Ej: Ahorro, Nombre Banco, CDT"
                       value={formData.account_name}
                       onChange={(e) => setFormData({ ...formData, account_name: e.target.value })}
                       required

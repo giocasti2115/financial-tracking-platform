@@ -165,6 +165,12 @@ CREATE TABLE IF NOT EXISTS debt_payments (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Link expenses directly with debts for reconciliation
+ALTER TABLE IF EXISTS expenses
+  ADD COLUMN IF NOT EXISTS debt_id UUID REFERENCES debts(id) ON DELETE SET NULL;
+
+CREATE INDEX IF NOT EXISTS idx_expenses_debt ON expenses(debt_id);
+
 -- Projections ------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS projections (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

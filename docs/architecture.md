@@ -1,7 +1,9 @@
-# Financial Tracking Platform
+# Aurea Finanzas
+> Haz de cada quincena tu mejor inversión.
 
 ## 1. Vision General
 - **Objetivo**: proveer un sistema integral para registrar ingresos, egresos, deudas y proyecciones, con analisis quincenal y mensual.
+- **Autogestión**: los usuarios pueden crear su cuenta directamente desde el login para activar la plataforma sin asistencia operativa.
 - **Usuarios meta**: administradores financieros internos y usuarios finales con cuentas personales.
 - **Pilares**: experiencia responsiva (Next.js), capa API consolidada y persistencia auditable.
 
@@ -9,7 +11,7 @@
 - **Stack**: Next.js 15 (App Router) + React 19 + TailwindCSS 4 + Radix UI.
 - **Modulos**: dashboard, ingresos, gastos, deudas, proyecciones, assets, auth.
 - **Estrategia de datos**: React Query + API client central (pendiente) con DTOs compartidos.
-- **Autenticacion**: integrar proveedor OAuth/JWT via `auth-provider` y `theme-provider`.
+- **Autenticacion**: integrar proveedor OAuth/JWT via `auth-provider` y `theme-provider`, con flujo de registro autogestionado.
 - **State management**: hooks locales, caches por ruta, slices de datos declarativos.
 
 ## 3. Backend propuesto
@@ -29,6 +31,7 @@
   - `accounts`, `categories`, `currencies`.
   - `incomes`, `expenses`, `expense_templates`, `payments`.
   - `debts`, `debt_payments`, `projections`.
+- **Movimientos**: cada acreditación desde pagos de gastos puede registrar una fila en `account_entries` (tipo `deposit`) y referenciar `expense_payments.account_id`; los pagos de deudas ya escriben en `debt_payments`, lo que permite levantar historiales por activo o deuda sin tablas extra.
 - **Migraciones**: Prisma Migrate o TypeORM CLI, versionadas en `scripts/`.
 - **Seeds**: datos base (categorias, usuarios demo) bajo `npm run seed`.
 

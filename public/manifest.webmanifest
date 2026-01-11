@@ -1,0 +1,31 @@
+{
+  "name": "Aurea Finanzas",
+  "short_name": "Aurea",
+  "description": "Controla ingresos, gastos, deudas y proyecciones desde cualquier dispositivo.",
+  "lang": "es-CO",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#031024",
+  "theme_color": "#031024",
+  "icons": [
+    {
+      "src": "/icon-dark-32x32.png",
+      "sizes": "32x32",
+      "type": "image/png"
+    },
+    {
+      "src": "/apple-icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/brand/logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

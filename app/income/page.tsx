@@ -24,11 +24,14 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { apiClient } from "@/lib/api-client"
+import { clampFinancialYear, getFinancialYears } from "@/lib/utils"
 
 export default function IncomePage() {
   const { user, loading: authLoading } = useAuth()
   const router = useRouter()
   const queryClient = useQueryClient()
+  const defaultYear = clampFinancialYear(new Date().getFullYear()).toString()
+  const defaultMonth = (new Date().getMonth() + 1).toString()
   const { data: incomes = [], isLoading: incomesLoading } = useQuery<Income[]>({
     queryKey: ["incomes"],
     queryFn: apiClient.getIncomes,
@@ -36,15 +39,15 @@ export default function IncomePage() {
   })
   const [open, setOpen] = useState(false)
   const [filters, setFilters] = useState({
-    year: new Date().getFullYear().toString(),
-    month: (new Date().getMonth() + 1).toString(),
+    year: defaultYear,
+    month: defaultMonth,
   })
   const [formData, setFormData] = useState({
     person_name: "",
     amount: "",
     payment_date: "15",
-    year: new Date().getFullYear().toString(),
-    month: (new Date().getMonth() + 1).toString(),
+    year: defaultYear,
+    month: defaultMonth,
   })
   const [deletingIncomeId, setDeletingIncomeId] = useState<string | null>(null)
 
@@ -85,8 +88,8 @@ export default function IncomePage() {
         person_name: "",
         amount: "",
         payment_date: "15",
-        year: new Date().getFullYear().toString(),
-        month: (new Date().getMonth() + 1).toString(),
+        year: defaultYear,
+        month: defaultMonth,
       })
       setOpen(false)
     } catch (error) {
@@ -127,8 +130,7 @@ export default function IncomePage() {
   const firstQuincenaTotal = filteredIncomes.filter((i) => i.payment_date === 15).reduce((sum, i) => sum + i.amount, 0)
   const secondQuincenaTotal = filteredIncomes.filter((i) => i.payment_date === 30).reduce((sum, i) => sum + i.amount, 0)
 
-  const currentYear = new Date().getFullYear()
-  const years = Array.from({ length: 5 }, (_, i) => currentYear - i)
+  const years = getFinancialYears()
   const months = [
     { value: "1", label: "Enero" },
     { value: "2", label: "Febrero" },
@@ -173,7 +175,7 @@ export default function IncomePage() {
                     <Label htmlFor="person_name">Persona *</Label>
                     <Input
                       id="person_name"
-                      placeholder="Ej: Geo, Emma"
+                      placeholder="Ej: Salario, Arriendos, Mesada, Pensión"
                       value={formData.person_name}
                       onChange={(e) => setFormData({ ...formData, person_name: e.target.value })}
                       required

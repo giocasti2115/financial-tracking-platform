@@ -1,4 +1,5 @@
 import createError from 'http-errors';
+import { DatabaseError } from 'pg';
 import { db, query } from '../lib/db.js';
 import type {
   AssetInput,
@@ -23,7 +24,8 @@ const mapExpense = (row: Record<string, any>) => ({
   amount: Number(row.amount),
   amount_paid: Number(row.amount_paid ?? 0),
   semester: row.semester === null ? null : Number(row.semester),
-  year: Number(row.year)
+  year: Number(row.year),
+  asset_id: row.asset_id ?? null
 });
 
 const mapIncome = (row: Record<string, any>) => ({
@@ -40,7 +42,8 @@ const mapDebt = (row: Record<string, any>) => ({
   current_balance: Number(row.current_balance),
   monthly_payment: row.monthly_payment === null ? null : Number(row.monthly_payment),
   interest_rate: row.interest_rate === null ? null : Number(row.interest_rate),
-  payment_day: row.payment_day === null ? null : Number(row.payment_day)
+  payment_day: row.payment_day === null ? null : Number(row.payment_day),
+  payment_frequency: row.payment_frequency ?? 'monthly'
 });
 
 const mapAsset = (row: Record<string, any>) => ({
@@ -62,6 +65,107 @@ const ensureCurrencyExists = async (code: string) => {
      ON CONFLICT (code) DO NOTHING`,
     [code, code]
   );
+};
+
+const formatCurrency = (value: number) => {
+  const sanitized = value.toString().replace(/\./g, '').replace(/,/g, '.')
+  const normalized = Number.parseFloat(sanitized)
+  if (Number.isNaN(normalized)) {
+    throw createError(400, 'Monto inválido')
+  }
+  return Number(normalized.toFixed(2))
+};
+
+let expenseDebtColumnEnsured = false;
+const ensureExpenseDebtColumn = async () => {
+  if (expenseDebtColumnEnsured) {
+    return;
+  }
+
+  await query(
+    `ALTER TABLE IF EXISTS expenses
+       ADD COLUMN IF NOT EXISTS debt_id UUID REFERENCES debts(id) ON DELETE SET NULL`
+  );
+
+  await query(`CREATE INDEX IF NOT EXISTS idx_expenses_debt ON expenses(debt_id)`);
+
+  expenseDebtColumnEnsured = true;
+};
+
+let expenseAssetColumnEnsured = false;
+const ensureExpenseAssetColumn = async () => {
+  if (expenseAssetColumnEnsured) {
+    return;
+  }
+
+  await query(
+    `ALTER TABLE IF EXISTS expenses
+       ADD COLUMN IF NOT EXISTS asset_id UUID REFERENCES accounts(id) ON DELETE SET NULL`
+  );
+
+  await query(`CREATE INDEX IF NOT EXISTS idx_expenses_asset ON expenses(asset_id)`);
+
+  expenseAssetColumnEnsured = true;
+};
+
+let expensePaymentAccountColumnEnsured = false;
+const ensureExpensePaymentAccountColumn = async () => {
+  if (expensePaymentAccountColumnEnsured) {
+    return;
+  }
+
+  await query(
+    `ALTER TABLE IF EXISTS expense_payments
+       ADD COLUMN IF NOT EXISTS account_id UUID REFERENCES accounts(id) ON DELETE SET NULL`
+  );
+
+  expensePaymentAccountColumnEnsured = true;
+};
+
+let debtFrequencyColumnEnsured = false;
+const ensureDebtFrequencyColumn = async () => {
+  if (debtFrequencyColumnEnsured) {
+    return;
+  }
+
+  await query(
+    `ALTER TABLE IF EXISTS debts
+       ADD COLUMN IF NOT EXISTS payment_frequency TEXT NOT NULL DEFAULT 'monthly'`
+  );
+
+  debtFrequencyColumnEnsured = true;
+};
+
+const normalizePaymentFrequency = (value: string | null | undefined): 'monthly' | 'biweekly' =>
+  value === 'biweekly' ? 'biweekly' : 'monthly';
+
+const getPeriodicInterestRate = (interestRate: number | null | undefined, frequency: string | null | undefined) => {
+  const normalizedRate = Number(interestRate ?? 0) / 100;
+  return normalizePaymentFrequency(frequency) === 'biweekly' ? normalizedRate / 2 : normalizedRate;
+};
+
+const splitDebtPaymentComponents = (
+  balance: number,
+  paymentAmount: number,
+  interestRate: number | null | undefined,
+  frequency: string | null | undefined
+) => {
+  if (paymentAmount <= 0) {
+    throw createError(400, 'El monto del pago debe ser mayor que cero.');
+  }
+
+  const periodicRate = getPeriodicInterestRate(interestRate, frequency);
+  const interestComponent = periodicRate > 0 ? formatCurrency(balance * periodicRate) : 0;
+  const principalBeforeCap = Math.max(paymentAmount - interestComponent, 0);
+  const principalComponent = formatCurrency(Math.min(principalBeforeCap, balance));
+  const allowableTotal = interestComponent + principalComponent;
+
+  if (paymentAmount - allowableTotal > 1e-2 && balance > 0) {
+    throw createError(400, 'El pago supera el saldo permitido para esta deuda.');
+  }
+
+  const newBalance = formatCurrency(Math.max(balance - principalComponent, 0));
+  return { interestComponent, principalComponent, newBalance };
 };
 
 const buildUpdateSet = (payload: Record<string, unknown>) => {
@@ -165,11 +269,13 @@ export const FinanceService = {
   },
 
   createExpense: async (userId: string, payload: ExpenseInput) => {
+    await ensureExpenseDebtColumn();
+    await ensureExpenseAssetColumn();
     const result = await query(
       `INSERT INTO expenses
-        (user_id, description, amount, payment_date, payment_period, semester, year, notes, is_paid, amount_paid, paid_date)
+        (user_id, description, amount, payment_date, payment_period, semester, year, notes, is_paid, amount_paid, paid_date, debt_id, asset_id)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, COALESCE($9, false), COALESCE($10, 0),
-               CASE WHEN COALESCE($9, false) = true THEN NOW() ELSE NULL END)
+               CASE WHEN COALESCE($9, false) = true THEN NOW() ELSE NULL END, $11, $12)
        RETURNING *` ,
       [
         userId,
@@ -181,13 +287,17 @@ export const FinanceService = {
         payload.year,
         payload.notes ?? null,
         payload.is_paid ?? false,
-        payload.amount_paid ?? 0
+        payload.amount_paid ?? 0,
+        payload.debt_id ?? null,
+        payload.asset_id ?? null
       ]
     );
     return mapExpense(result.rows[0]);
   },
 
   updateExpense: async (userId: string, expenseId: string, payload: ExpenseUpdateInput) => {
+    await ensureExpenseDebtColumn();
+    await ensureExpenseAssetColumn();
     const filteredPayload = Object.fromEntries(
       Object.entries(payload).filter(([, value]) => value !== undefined)
     );
@@ -228,47 +338,127 @@ export const FinanceService = {
   },
 
   registerExpensePayment: async (userId: string, expenseId: string, payload: ExpensePaymentInput) => {
-    const existing = await query<{ amount: string; amount_paid: string }>(
-      'SELECT amount, amount_paid FROM expenses WHERE id = $1 AND user_id = $2',
-      [expenseId, userId]
-    );
-
-    if (!existing.rowCount) {
-      throw createError(404, 'Expense not found');
-    }
-
-    const totalAmount = Number(existing.rows[0].amount);
-    const currentPaid = Number(existing.rows[0].amount_paid ?? 0);
-    const newTotal = currentPaid + payload.amount;
-
-    if (newTotal - totalAmount > 1e-6) {
-      throw createError(400, 'Payment exceeds remaining balance');
-    }
-
+    await ensureExpenseDebtColumn();
+    await ensureExpenseAssetColumn();
+    await ensureExpensePaymentAccountColumn();
+    await ensureDebtFrequencyColumn();
     const client = await db.connect();
     try {
       await client.query('BEGIN');
-      await client.query(
-        `INSERT INTO expense_payments (expense_id, user_id, amount, payment_date, notes)
-         VALUES ($1, $2, $3, NOW(), $4)` ,
-        [expenseId, userId, payload.amount, payload.notes ?? null]
+
+      const expenseResult = await client.query<{ amount: string; amount_paid: string; debt_id: string | null; asset_id: string | null }>(
+        'SELECT amount, amount_paid, debt_id, asset_id FROM expenses WHERE id = $1 AND user_id = $2 FOR UPDATE',
+        [expenseId, userId]
       );
 
-      const updated = await client.query(
+      if (!expenseResult.rowCount) {
+        throw createError(404, 'Expense not found');
+      }
+
+      const expenseRow = expenseResult.rows[0];
+      const totalAmount = Number(expenseRow.amount);
+      const currentPaid = Number(expenseRow.amount_paid ?? 0);
+      const amountDelta = formatCurrency(payload.amount);
+      const newTotal = currentPaid + amountDelta;
+
+      if (newTotal - totalAmount > 1e-6) {
+        throw createError(400, 'Payment exceeds remaining balance');
+      }
+
+      const paymentTimestamp = new Date().toISOString();
+      const paymentDate = paymentTimestamp.split('T')[0];
+
+      const effectiveAssetId = payload.asset_id ?? expenseRow.asset_id;
+
+      if (effectiveAssetId) {
+        const assetResult = await client.query<{ current_balance: string }>(
+          'SELECT current_balance FROM accounts WHERE id = $1 AND user_id = $2 AND archived = false FOR UPDATE',
+          [effectiveAssetId, userId]
+        );
+
+        if (!assetResult.rowCount) {
+          throw createError(404, 'Asset not found for this user');
+        }
+
+        const currentAssetBalance = Number(assetResult.rows[0].current_balance);
+        const newAssetBalance = formatCurrency(currentAssetBalance + amountDelta);
+
+        await client.query(
+          `UPDATE accounts
+             SET current_balance = $1,
+                 updated_at = NOW()
+           WHERE id = $2 AND user_id = $3` ,
+          [newAssetBalance, effectiveAssetId, userId]
+        );
+
+        await client.query(
+          `INSERT INTO account_entries (account_id, user_id, entry_type, amount, balance_after, description, occurred_at)
+             VALUES ($1, $2, 'deposit', $3, $4, $5, $6)` ,
+          [effectiveAssetId, userId, amountDelta, newAssetBalance, `Pago de gasto ${expenseId}`, paymentTimestamp]
+        );
+      }
+
+      await client.query(
+        `INSERT INTO expense_payments (expense_id, user_id, amount, payment_date, notes, account_id)
+         VALUES ($1, $2, $3, $4, $5, $6)` ,
+        [expenseId, userId, amountDelta, paymentTimestamp, payload.notes ?? null, effectiveAssetId ?? null]
+      );
+
+      const updatedExpense = await client.query(
         `UPDATE expenses
          SET amount_paid = amount_paid + $1,
              is_paid = CASE WHEN amount_paid + $1 >= amount THEN true ELSE is_paid END,
-             paid_date = CASE WHEN amount_paid + $1 >= amount THEN NOW() ELSE paid_date END,
+             paid_date = CASE WHEN amount_paid + $1 >= amount THEN $4 ELSE paid_date END,
              updated_at = NOW()
          WHERE id = $2 AND user_id = $3
          RETURNING *` ,
-        [payload.amount, expenseId, userId]
+        [amountDelta, expenseId, userId, paymentTimestamp]
       );
 
+      if (expenseRow.debt_id) {
+        const debtResult = await client.query<{ current_balance: string; interest_rate: string | null; payment_frequency: string | null }>(
+          'SELECT current_balance, interest_rate, payment_frequency FROM debts WHERE id = $1 AND user_id = $2 FOR UPDATE',
+          [expenseRow.debt_id, userId]
+        );
+
+        if (!debtResult.rowCount) {
+          throw createError(404, 'Debt not found for linked expense');
+        }
+
+        const debtRow = debtResult.rows[0];
+        const currentBalance = Number(debtRow.current_balance);
+
+        const { interestComponent, principalComponent, newBalance } = splitDebtPaymentComponents(
+          currentBalance,
+          amountDelta,
+          toNumber(debtRow.interest_rate),
+          debtRow.payment_frequency
+        );
+
+        await client.query(
+          `INSERT INTO debt_payments (debt_id, user_id, amount, interest_component, principal_component, payment_date, balance_after_payment, notes)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)` ,
+          [expenseRow.debt_id, userId, amountDelta, interestComponent, principalComponent, paymentDate, newBalance, payload.notes ?? null]
+        );
+
+        await client.query(
+          `UPDATE debts
+           SET current_balance = $1,
+               status = CASE WHEN $1 <= 0::numeric THEN 'paid' ELSE status END,
+               updated_at = NOW()
+           WHERE id = $2 AND user_id = $3` ,
+          [newBalance, expenseRow.debt_id, userId]
+        );
+      }
+
       await client.query('COMMIT');
-      return mapExpense(updated.rows[0]);
+      return mapExpense(updatedExpense.rows[0]);
     } catch (error) {
       await client.query('ROLLBACK');
+      if (error instanceof DatabaseError) {
+        console.error('[registerExpensePayment] database error:', error.message, error.detail);
+        throw createError(400, error.detail || error.message);
+      }
       throw error;
     } finally {
       client.release();
@@ -304,6 +494,7 @@ export const FinanceService = {
   },
 
   listDebts: async (userId: string) => {
+    await ensureDebtFrequencyColumn();
     const result = await query(
       `SELECT *
        FROM debts
@@ -315,12 +506,13 @@ export const FinanceService = {
   },
 
   createDebt: async (userId: string, payload: DebtInput) => {
+    await ensureDebtFrequencyColumn();
     const result = await query(
       `INSERT INTO debts (
           user_id, debt_type, entity_name, original_amount, current_balance,
-          monthly_payment, payment_day, start_date, end_date, interest_rate, status, notes
+          monthly_payment, payment_day, start_date, end_date, interest_rate, payment_frequency, status, notes
         )
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, COALESCE($11, 'active'), $12)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
        RETURNING *` ,
       [
         userId,
@@ -333,7 +525,8 @@ export const FinanceService = {
         payload.start_date ?? null,
         payload.end_date ?? null,
         payload.interest_rate ?? null,
-        payload.status ?? null,
+        normalizePaymentFrequency(payload.payment_frequency ?? null),
+        payload.status ?? 'active',
         payload.notes ?? null
       ]
     );
@@ -341,6 +534,7 @@ export const FinanceService = {
   },
 
   updateDebt: async (userId: string, debtId: string, payload: DebtUpdateInput) => {
+    await ensureDebtFrequencyColumn();
     const normalized: Record<string, unknown> = {};
 
     if (payload.debt_type !== undefined) {
@@ -369,6 +563,9 @@ export const FinanceService = {
     }
     if (payload.interest_rate !== undefined) {
       normalized.interest_rate = payload.interest_rate;
+    }
+    if (payload.payment_frequency !== undefined) {
+      normalized.payment_frequency = normalizePaymentFrequency(payload.payment_frequency ?? null);
     }
     if (payload.status !== undefined) {
       normalized.status = payload.status;
@@ -409,39 +606,45 @@ export const FinanceService = {
   },
 
   addDebtPayment: async (userId: string, debtId: string, payload: DebtPaymentInput) => {
-    const existing = await query<{ current_balance: string }>(
-      'SELECT current_balance FROM debts WHERE id = $1 AND user_id = $2',
-      [debtId, userId]
-    );
-
-    if (!existing.rowCount) {
-      throw createError(404, 'Debt not found');
-    }
-
-    const currentBalance = Number(existing.rows[0].current_balance);
-    if (payload.amount > currentBalance) {
-      throw createError(400, 'Payment exceeds current balance');
-    }
-
-    const newBalance = currentBalance - payload.amount;
-
+    await ensureDebtFrequencyColumn();
     const client = await db.connect();
     try {
       await client.query('BEGIN');
+
+      const existing = await client.query<{ current_balance: string; interest_rate: string | null; payment_frequency: string | null }>(
+        'SELECT current_balance, interest_rate, payment_frequency FROM debts WHERE id = $1 AND user_id = $2 FOR UPDATE',
+        [debtId, userId]
+      );
+
+      if (!existing.rowCount) {
+        throw createError(404, 'Debt not found');
+      }
+
+      const debtRow = existing.rows[0];
+      const currentBalance = Number(debtRow.current_balance);
+      const amountDelta = formatCurrency(payload.amount);
+
+      const { interestComponent, principalComponent, newBalance } = splitDebtPaymentComponents(
+        currentBalance,
+        amountDelta,
+        toNumber(debtRow.interest_rate),
+        debtRow.payment_frequency
+      );
+
       await client.query(
         `INSERT INTO debt_payments (debt_id, user_id, amount, interest_component, principal_component, payment_date, balance_after_payment, notes)
-         VALUES ($1, $2, $3, 0, $3, $4, $5, $6)` ,
-        [debtId, userId, payload.amount, payload.payment_date, newBalance, payload.notes ?? null]
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)` ,
+        [debtId, userId, amountDelta, interestComponent, principalComponent, payload.payment_date, newBalance, payload.notes ?? null]
       );
 
       const updated = await client.query(
         `UPDATE debts
          SET current_balance = $1,
-             status = CASE WHEN $1 <= 0 THEN 'paid' ELSE status END,
+             status = CASE WHEN $1 <= 0::numeric THEN 'paid' ELSE status END,
              updated_at = NOW()
          WHERE id = $2 AND user_id = $3
          RETURNING *` ,
-        [Math.max(newBalance, 0), debtId, userId]
+        [newBalance, debtId, userId]
       );
 
       await client.query('COMMIT');

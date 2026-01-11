@@ -4,6 +4,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { getFinancialYears } from "@/lib/utils"
 
 interface ExpenseFiltersProps {
   filters: {
@@ -14,11 +16,12 @@ interface ExpenseFiltersProps {
     search: string
   }
   onFilterChange: (filters: any) => void
+  onReset: () => void
+  isDirty: boolean
 }
 
-export function ExpenseFilters({ filters, onFilterChange }: ExpenseFiltersProps) {
-  const currentYear = new Date().getFullYear()
-  const years = Array.from({ length: 5 }, (_, i) => currentYear - i)
+export function ExpenseFilters({ filters, onFilterChange, onReset, isDirty }: ExpenseFiltersProps) {
+  const years = getFinancialYears()
 
   const months = [
     { value: "1", label: "Enero" },
@@ -38,8 +41,18 @@ export function ExpenseFilters({ filters, onFilterChange }: ExpenseFiltersProps)
   return (
     <Card>
       <CardContent className="pt-6">
-        <div className="grid gap-4 md:grid-cols-5">
-          <div className="grid gap-2">
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center justify-between">
+            <div className="text-sm text-muted-foreground">
+              Filtra por periodo, búsqueda y semestre
+            </div>
+            <Button type="button" variant="ghost" size="sm" onClick={onReset} disabled={!isDirty}>
+              Limpiar filtros
+            </Button>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-5">
+            <div className="grid gap-2">
             <Label htmlFor="year-filter">Año</Label>
             <Select value={filters.year} onValueChange={(value) => onFilterChange({ ...filters, year: value })}>
               <SelectTrigger id="year-filter">
@@ -105,10 +118,12 @@ export function ExpenseFilters({ filters, onFilterChange }: ExpenseFiltersProps)
             <Label htmlFor="search-filter">Buscar</Label>
             <Input
               id="search-filter"
-              placeholder="Buscar por descripción..."
+              type="search"
+              placeholder="Buscar por descripción o notas..."
               value={filters.search}
               onChange={(e) => onFilterChange({ ...filters, search: e.target.value })}
             />
+          </div>
           </div>
         </div>
       </CardContent>

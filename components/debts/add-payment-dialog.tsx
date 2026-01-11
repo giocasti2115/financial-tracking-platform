@@ -2,7 +2,10 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useEffect, useMemo, useState } from "react"
+import { zodResolver } from "@hookform/resolvers/zod"
+import { useForm } from "react-hook-form"
+import { z } from "zod"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -14,65 +17,92 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form"
+import { parseCurrencyInput } from "@/lib/utils"
+import { calculations } from "@/lib/calculations"
+import type { Debt } from "@/lib/types"
 import { DollarSign, Loader2 } from "lucide-react"
 
 interface AddPaymentDialogProps {
-  debtId: string
-  currentBalance: number
+  debt: Debt
   onSubmit: (payment: { debtId: string; amount: number; payment_date: string; notes?: string }) => Promise<void>
 }
 
-export function AddPaymentDialog({ debtId, currentBalance, onSubmit }: AddPaymentDialogProps) {
+export function AddPaymentDialog({ debt, onSubmit }: AddPaymentDialogProps) {
   const [open, setOpen] = useState(false)
-  const [formData, setFormData] = useState({
-    amount: "",
-    payment_date: new Date().toISOString().split("T")[0],
-    notes: "",
+  const today = useMemo(() => new Date().toISOString().split("T")[0], [])
+  const currentBalance = debt.current_balance
+  const frequencyLabel = debt.payment_frequency === "biweekly" ? "Quincenal" : "Mensual"
+
+  const formSchema = z.object({
+    amount: z
+      .string({ required_error: "Ingresa el monto" })
+      .trim()
+      .min(1, "Ingresa el monto")
+      .refine((value) => !Number.isNaN(parseCurrencyInput(value)), "Monto inválido")
+      .refine((value) => parseCurrencyInput(value) > 0, "El monto debe ser mayor a 0")
+      .refine(
+        (value) => parseCurrencyInput(value) <= currentBalance + 1e-6,
+        `El monto no puede superar $${currentBalance.toLocaleString("es-CO")}`,
+      ),
+    payment_date: z
+      .string({ required_error: "Selecciona la fecha" })
+      .trim()
+      .refine((value) => !Number.isNaN(Date.parse(value)), "Fecha inválida"),
+    notes: z
+      .string()
+      .max(400, "Máximo 400 caracteres")
+      .optional()
+      .or(z.literal("")),
   })
-  const [submitting, setSubmitting] = useState(false)
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      amount: "",
+      payment_date: today,
+      notes: "",
+    },
+  })
 
-    if (!formData.amount || !formData.payment_date) {
-      alert("Por favor completa todos los campos requeridos")
-      return
+  const watchedAmount = form.watch("amount")
+  const paymentPreview = useMemo(() => {
+    const parsed = watchedAmount ? parseCurrencyInput(watchedAmount) : undefined
+    if (!parsed || Number.isNaN(parsed) || parsed <= 0) {
+      return calculations.calculateDebtPaymentBreakdown(debt) ?? null
     }
+    return calculations.calculateDebtPaymentBreakdown(debt, parsed) ?? null
+  }, [watchedAmount, debt])
 
-    const paymentAmount = Number.parseFloat(formData.amount)
-    if (paymentAmount <= 0) {
-      alert("El monto del pago debe ser mayor a 0")
-      return
+  useEffect(() => {
+    if (!open) {
+      form.reset({ amount: "", payment_date: today, notes: "" })
     }
+  }, [open, today, form])
 
-    if (paymentAmount > currentBalance) {
-      alert("El monto del pago no puede ser mayor al saldo actual")
-      return
-    }
-
+  const handleSubmit = form.handleSubmit(async (values) => {
     try {
-      setSubmitting(true)
       await onSubmit({
-        debtId,
-        amount: paymentAmount,
-        payment_date: formData.payment_date,
-        notes: formData.notes || undefined,
+        debtId: debt.id,
+        amount: parseCurrencyInput(values.amount),
+        payment_date: values.payment_date,
+        notes: values.notes?.trim() ? values.notes.trim() : undefined,
       })
 
-      setFormData({
-        amount: "",
-        payment_date: new Date().toISOString().split("T")[0],
-        notes: "",
-      })
+      form.reset({ amount: "", payment_date: today, notes: "" })
       setOpen(false)
     } catch (error) {
       alert(error instanceof Error ? error.message : "Ocurrió un error al registrar el pago.")
-    } finally {
-      setSubmitting(false)
     }
-  }
+  })
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -83,72 +113,128 @@ export function AddPaymentDialog({ debtId, currentBalance, onSubmit }: AddPaymen
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[450px]">
-        <form onSubmit={handleSubmit}>
-          <DialogHeader>
-            <DialogTitle>Registrar Pago de Deuda</DialogTitle>
-            <DialogDescription>
-              Saldo actual: <span className="font-semibold">${currentBalance.toLocaleString("es-CO")}</span>
-            </DialogDescription>
-          </DialogHeader>
+        <Form {...form}>
+          <form onSubmit={handleSubmit}>
+            <DialogHeader>
+              <DialogTitle>Registrar Pago de Deuda</DialogTitle>
+              <DialogDescription>
+                Saldo actual: <span className="font-semibold">${currentBalance.toLocaleString("es-CO")}</span>
+                <br /> Frecuencia: {frequencyLabel}
+              </DialogDescription>
+            </DialogHeader>
 
           <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="amount">Monto del Pago *</Label>
-              <Input
-                id="amount"
-                type="number"
-                step="0.01"
-                placeholder="0.00"
-                value={formData.amount}
-                onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-                required
-              />
-              {formData.amount && (
-                <p className="text-xs text-muted-foreground">
-                  Nuevo saldo: ${(currentBalance - Number.parseFloat(formData.amount)).toLocaleString("es-CO")}
-                </p>
+            <FormField
+              control={form.control}
+              name="amount"
+              render={({ field }) => {
+                const previewAmount = parseCurrencyInput(field.value)
+                return (
+                  <FormItem className="grid gap-2">
+                    <FormLabel>Monto del Pago *</FormLabel>
+                    <FormControl>
+                      <div className="relative">
+                        <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          id="amount"
+                          type="text"
+                          inputMode="decimal"
+                          placeholder="0.00"
+                          className="pl-9"
+                          {...field}
+                        />
+                      </div>
+                    </FormControl>
+                    {field.value && Number.isFinite(previewAmount) && (
+                      <p className="text-xs text-muted-foreground">
+                        Nuevo saldo: ${Math.max(currentBalance - previewAmount, 0).toLocaleString("es-CO")}
+                      </p>
+                    )}
+                    <FormMessage />
+                  </FormItem>
+                )
+              }}
+            />
+
+            {paymentPreview && (
+              <div className="rounded-lg border bg-muted/30 p-3 text-xs text-muted-foreground">
+                <p className="text-sm font-medium text-foreground">Desglose estimado del pago</p>
+                <div className="mt-2 space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span>Interés</span>
+                    <span className="font-semibold text-red-600">
+                      ${paymentPreview.interest_component.toLocaleString("es-CO")}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span>Capital</span>
+                    <span className="font-semibold text-emerald-600">
+                      ${paymentPreview.principal_component.toLocaleString("es-CO")}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span>Nuevo saldo</span>
+                    <span className="font-semibold">
+                      ${paymentPreview.next_balance.toLocaleString("es-CO")}
+                    </span>
+                  </div>
+                </div>
+                {!debt.interest_rate && (
+                  <p className="mt-2 text-[11px]">Completa la tasa de interés para tener cálculos más precisos.</p>
+                )}
+              </div>
+            )}
+
+            <FormField
+              control={form.control}
+              name="payment_date"
+              render={({ field }) => (
+                <FormItem className="grid gap-2">
+                  <FormLabel>Fecha de Pago *</FormLabel>
+                  <FormControl>
+                    <Input id="payment_date" type="date" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
               )}
-            </div>
+            />
 
-            <div className="grid gap-2">
-              <Label htmlFor="payment_date">Fecha de Pago *</Label>
-              <Input
-                id="payment_date"
-                type="date"
-                value={formData.payment_date}
-                onChange={(e) => setFormData({ ...formData, payment_date: e.target.value })}
-                required
-              />
-            </div>
-
-            <div className="grid gap-2">
-              <Label htmlFor="notes">Notas</Label>
-              <Textarea
-                id="notes"
-                placeholder="Notas adicionales (opcional)"
-                value={formData.notes}
-                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                rows={3}
-              />
-            </div>
+            <FormField
+              control={form.control}
+              name="notes"
+              render={({ field }) => (
+                <FormItem className="grid gap-2">
+                  <FormLabel>Notas</FormLabel>
+                  <FormControl>
+                    <Textarea id="notes" placeholder="Notas adicionales (opcional)" rows={3} {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
           </div>
 
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-              Cancelar
-            </Button>
-            <Button type="submit" className="bg-emerald-600 hover:bg-emerald-700" disabled={submitting}>
-              {submitting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Guardando...
-                </>
-              ) : (
-                "Registrar Pago"
-              )}
-            </Button>
-          </DialogFooter>
-        </form>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                className="bg-emerald-600 hover:bg-emerald-700"
+                disabled={form.formState.isSubmitting}
+              >
+                {form.formState.isSubmitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Guardando...
+                  </>
+                ) : (
+                  "Registrar Pago"
+                )}
+              </Button>
+            </DialogFooter>
+          </form>
+        </Form>
       </DialogContent>
     </Dialog>
   )

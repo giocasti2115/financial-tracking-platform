@@ -14,16 +14,16 @@ export function DebtSummary({ debts }: DebtSummaryProps) {
   const totalDebt = calculations.calculateTotalDebts(debts)
 
   return (
-    <Card>
+    <Card className="rounded-2xl border-[#f3d4db] bg-[#fef6f4] shadow-sm">
       <CardHeader>
         <CardTitle>Resumen de Deudas</CardTitle>
-        <CardDescription>{activeDebts.length} deudas activas</CardDescription>
+        <CardDescription className="text-[#7a1f2d]/70">{activeDebts.length} deudas activas</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">Total Adeudado</span>
-            <span className="text-2xl font-bold text-red-600">${totalDebt.toLocaleString("es-CO")}</span>
+            <span className="text-sm text-[#6d5d4d]">Total Adeudado</span>
+            <span className="text-2xl font-bold text-[#7a1f2d]">${totalDebt.toLocaleString("es-CO")}</span>
           </div>
         </div>
 
@@ -38,19 +38,23 @@ export function DebtSummary({ debts }: DebtSummaryProps) {
                   <div className="flex items-center justify-between">
                     <div className="space-y-1">
                       <p className="text-sm font-medium">{debt.entity_name}</p>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-xs text-[#6d5d4d]">
                         ${debt.current_balance.toLocaleString("es-CO")} de $
                         {debt.original_amount.toLocaleString("es-CO")}
                       </p>
                     </div>
                     {monthsLeft && (
                       <div className="text-right">
-                        <p className="text-xs font-medium">{monthsLeft} meses</p>
-                        <p className="text-xs text-muted-foreground">restantes</p>
+                        <p className="text-xs font-medium text-[#0f253b]">{monthsLeft} meses</p>
+                        <p className="text-xs text-[#6d5d4d]">restantes</p>
                       </div>
                     )}
                   </div>
-                  <Progress value={progress} className="h-1.5" />
+                  <Progress
+                    value={progress}
+                    className="h-1.5 bg-[rgba(4,23,36,0.08)]"
+                    indicatorClassName="bg-[#d9a441]"
+                  />
                 </div>
               )
             })}
@@ -59,7 +63,7 @@ export function DebtSummary({ debts }: DebtSummaryProps) {
 
         {activeDebts.length === 0 && (
           <div className="text-center py-6">
-            <p className="text-sm text-muted-foreground">No tienes deudas activas</p>
+            <p className="text-sm text-[#6d5d4d]">No tienes deudas activas</p>
           </div>
         )}
       </CardContent>

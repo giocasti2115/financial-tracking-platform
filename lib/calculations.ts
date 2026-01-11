@@ -1,5 +1,13 @@
 import type { Expense, Debt, Asset, Income, FinancialSummary, QuincenalSummary } from "./types"
 
+const getDebtFrequency = (debt: Debt) => (debt.payment_frequency === "biweekly" ? "biweekly" : "monthly")
+
+const getPeriodicRate = (debt: Debt) => {
+  const baseRate = (debt.interest_rate ?? 0) / 100
+  const frequency = getDebtFrequency(debt)
+  return frequency === "biweekly" ? baseRate / 2 : baseRate
+}
+
 export const calculations = {
   // Calculate total income for a specific period
   calculateTotalIncome(income: Income[], year: number, month?: number): number {
@@ -94,8 +102,79 @@ export const calculations = {
 
   // Calculate months until debt is paid off
   calculateMonthsUntilPaidOff(debt: Debt): number | null {
-    if (!debt.monthly_payment || debt.monthly_payment <= 0) return null
-    return Math.ceil(debt.current_balance / debt.monthly_payment)
+    if (!debt.monthly_payment || debt.monthly_payment <= 0 || debt.current_balance <= 0) {
+      return null
+    }
+
+    const frequency = getDebtFrequency(debt)
+    const periodicRate = getPeriodicRate(debt)
+    const maxIterations = 600
+    let balance = debt.current_balance
+    let periods = 0
+
+    while (balance > 1e-2 && periods < maxIterations) {
+      const interest = Number((balance * periodicRate).toFixed(2))
+      const principalBeforeCap = Math.max(debt.monthly_payment - interest, 0)
+      if (principalBeforeCap <= 0) {
+        return null
+      }
+      const principal = Math.min(principalBeforeCap, balance)
+      balance = Number((balance - principal).toFixed(2))
+      periods += 1
+    }
+
+    if (balance > 1e-2) {
+      return null
+    }
+
+    const monthsEquivalent = frequency === "biweekly" ? periods / 2 : periods
+    return Math.max(1, Math.ceil(monthsEquivalent))
+  },
+
+  calculateDebtPaymentBreakdown(debt: Debt, customAmount?: number) {
+    const paymentAmount = customAmount ?? debt.monthly_payment ?? 0
+    if (paymentAmount <= 0 || debt.current_balance <= 0) {
+      return null
+    }
+
+    const periodicRate = getPeriodicRate(debt)
+    const interest = Number((debt.current_balance * periodicRate).toFixed(2))
+    const principalBeforeCap = Math.max(paymentAmount - interest, 0)
+    const principal = Number(Math.min(principalBeforeCap, debt.current_balance).toFixed(2))
+    const nextBalance = Number(Math.max(debt.current_balance - principal, 0).toFixed(2))
+
+    return {
+      payment_amount: Number(paymentAmount.toFixed(2)),
+      interest_component: Math.min(interest, paymentAmount),
+      principal_component: principal,
+      next_balance: nextBalance,
+      frequency: getDebtFrequency(debt),
+    }
+  },
+
+  generateAmortizationSchedule(debt: Debt, periods = 6) {
+    if (!debt.monthly_payment || debt.monthly_payment <= 0 || debt.current_balance <= 0) {
+      return [] as Array<{ period: number; payment: number; interest: number; principal: number; balance: number }>
+    }
+
+    const paymentAmount = debt.monthly_payment
+    const periodicRate = getPeriodicRate(debt)
+    let balance = debt.current_balance
+    const schedule: Array<{ period: number; payment: number; interest: number; principal: number; balance: number }> = []
+
+    for (let period = 1; period <= periods && balance > 0; period += 1) {
+      const interest = Number((balance * periodicRate).toFixed(2))
+      const principalBeforeCap = Math.max(paymentAmount - interest, 0)
+      if (principalBeforeCap <= 0 && periodicRate > 0) {
+        break
+      }
+      const principal = Number(Math.min(principalBeforeCap, balance).toFixed(2))
+      balance = Number(Math.max(balance - principal, 0).toFixed(2))
+      const payment = Number(Math.min(paymentAmount, interest + principal).toFixed(2))
+      schedule.push({ period, payment, interest, principal, balance })
+    }
+
+    return schedule
   },
 
   // Get financial summary

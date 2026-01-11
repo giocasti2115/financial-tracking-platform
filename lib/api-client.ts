@@ -1,5 +1,5 @@
 import { auth } from "./auth"
-import type { Asset, Debt, Expense, Income, PaymentPeriod } from "./types"
+import type { Asset, Debt, Expense, Income, PaymentPeriod, DebtPaymentFrequency } from "./types"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000"
 const NETWORK_ERROR_MESSAGE =
@@ -17,6 +17,8 @@ type NewExpensePayload = {
   notes?: string
   is_paid?: boolean
   amount_paid?: number
+  debt_id?: string | null
+  asset_id?: string | null
 }
 
 type UpdateExpensePayload = Partial<NewExpensePayload> & {
@@ -27,6 +29,7 @@ type UpdateExpensePayload = Partial<NewExpensePayload> & {
 type ExpensePaymentPayload = {
   amount: number
   notes?: string
+  asset_id?: string
 }
 
 type NewIncomePayload = {
@@ -48,6 +51,7 @@ type NewDebtPayload = {
   start_date?: string
   end_date?: string
   interest_rate?: number
+  payment_frequency?: DebtPaymentFrequency
   status?: "active" | "paid" | "pending"
   notes?: string
 }

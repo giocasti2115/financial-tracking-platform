@@ -3,6 +3,7 @@ import { z } from 'zod';
 const currencyValue = z.number().finite().nonnegative();
 const paymentPeriodSchema = z.enum(['primera_quincena', 'segunda_quincena', 'monthly', 'custom']);
 const accountTypeSchema = z.enum(['cash', 'savings', 'checking', 'credit', 'investment']);
+const debtPaymentFrequencySchema = z.enum(['monthly', 'biweekly']);
 
 export const expenseInputSchema = z.object({
   description: z.string().min(1),
@@ -13,7 +14,9 @@ export const expenseInputSchema = z.object({
   year: z.number().int().min(2000),
   notes: z.string().optional(),
   is_paid: z.boolean().optional(),
-  amount_paid: currencyValue.optional()
+  amount_paid: currencyValue.optional(),
+  debt_id: z.string().uuid().optional().nullable(),
+  asset_id: z.string().uuid().optional().nullable()
 });
 
 export const expenseUpdateSchema = expenseInputSchema.partial().extend({
@@ -24,7 +27,8 @@ export const expenseUpdateSchema = expenseInputSchema.partial().extend({
 
 export const expensePaymentSchema = z.object({
   amount: currencyValue.positive(),
-  notes: z.string().optional()
+  notes: z.string().optional(),
+  asset_id: z.string().uuid().optional()
 });
 
 export const incomeInputSchema = z.object({
@@ -46,6 +50,7 @@ export const debtInputSchema = z.object({
   payment_day: z.number().int().min(1).max(31).optional(),
   start_date: z.string().optional(),
   end_date: z.string().optional(),
+  payment_frequency: debtPaymentFrequencySchema.optional(),
   status: z.enum(['active', 'paid', 'pending']).optional(),
   notes: z.string().optional()
 });

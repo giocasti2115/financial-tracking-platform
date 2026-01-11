@@ -3,7 +3,7 @@ import createError from 'http-errors';
 import jwt from 'jsonwebtoken';
 import { env } from '../env.js';
 import { query } from '../lib/db.js';
-import { comparePassword } from '../lib/password.js';
+import { comparePassword, hashPassword } from '../lib/password.js';
 
 const ACCESS_TOKEN_TTL = '15m';
 const REFRESH_TOKEN_TTL_MINUTES = 60 * 24 * 7;
@@ -21,6 +21,28 @@ type DbUser = {
 };
 
 export const AuthService = {
+  register: async (
+    input: { fullName: string; email: string; password: string },
+    meta?: { ip?: string | string[]; userAgent?: string }
+  ) => {
+    const email = input.email.trim().toLowerCase();
+    const fullName = input.fullName.trim();
+
+    const existing = await query<{ id: string }>('SELECT id FROM users WHERE email = $1', [email]);
+    if (existing.rowCount > 0) {
+      throw createError(409, 'Ya existe una cuenta con este correo.');
+    }
+
+    const passwordHash = await hashPassword(input.password);
+    await query(
+      `INSERT INTO users (email, full_name, password_hash)
+       VALUES ($1, $2, $3)` ,
+      [email, fullName || null, passwordHash]
+    );
+
+    return AuthService.login(email, input.password, meta);
+  },
+
   login: async (
     email: string,
     password: string,

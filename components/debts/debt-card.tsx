@@ -23,6 +23,9 @@ interface DebtCardProps {
 export function DebtCard({ debt, onRegisterPayment, onDelete, onUpdate, isDeleting, isUpdating }: DebtCardProps) {
   const progress = ((debt.original_amount - debt.current_balance) / debt.original_amount) * 100
   const monthsLeft = calculations.calculateMonthsUntilPaidOff(debt)
+  const frequencyLabel = debt.payment_frequency === "biweekly" ? "Quincenal" : "Mensual"
+  const paymentBreakdown = calculations.calculateDebtPaymentBreakdown(debt)
+  const amortizationPreview = calculations.generateAmortizationSchedule(debt, 4)
 
   const getStatusBadge = () => {
     switch (debt.status) {
@@ -123,8 +126,8 @@ export function DebtCard({ debt, onRegisterPayment, onDelete, onUpdate, isDeleti
         </div>
 
         {/* Additional Info */}
-        {(debt.interest_rate || debt.payment_day) && (
-          <div className="grid grid-cols-2 gap-4 pt-2 border-t">
+        {(debt.interest_rate || debt.payment_day || debt.payment_frequency) && (
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4 pt-2 border-t">
             {debt.interest_rate && (
               <div className="space-y-1">
                 <p className="text-xs text-muted-foreground">Tasa de Interés</p>
@@ -137,6 +140,70 @@ export function DebtCard({ debt, onRegisterPayment, onDelete, onUpdate, isDeleti
                 <p className="text-sm font-medium">Día {debt.payment_day}</p>
               </div>
             )}
+            <div className="space-y-1">
+              <p className="text-xs text-muted-foreground">Frecuencia</p>
+              <p className="text-sm font-medium">{frequencyLabel}</p>
+            </div>
+          </div>
+        )}
+
+        {paymentBreakdown && (
+          <div className="pt-3 border-t">
+            <p className="text-xs text-muted-foreground">Próxima cuota estimada ({frequencyLabel})</p>
+            <div className="mt-2 grid grid-cols-3 gap-2 text-sm">
+              <div>
+                <p className="text-xs text-muted-foreground">Cuota</p>
+                <p className="font-semibold">
+                  ${paymentBreakdown.payment_amount.toLocaleString("es-CO")}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Interés</p>
+                <p className="text-red-600 font-semibold">
+                  ${paymentBreakdown.interest_component.toLocaleString("es-CO")}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Capital</p>
+                <p className="text-emerald-600 font-semibold">
+                  ${paymentBreakdown.principal_component.toLocaleString("es-CO")}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {amortizationPreview.length > 0 && (
+          <div className="pt-3 border-t">
+            <p className="text-xs text-muted-foreground mb-2">Tabla de amortización (próximos {amortizationPreview.length} periodos)</p>
+            <div className="rounded-xl border bg-white overflow-hidden">
+              <table className="w-full text-[11px]">
+                <thead className="bg-muted/60 text-muted-foreground">
+                  <tr>
+                    <th className="px-2 py-1 text-left font-medium">#</th>
+                    <th className="px-2 py-1 text-left font-medium">Interés</th>
+                    <th className="px-2 py-1 text-left font-medium">Capital</th>
+                    <th className="px-2 py-1 text-left font-medium">Saldo</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {amortizationPreview.map((period) => (
+                    <tr key={period.period} className="odd:bg-muted/20">
+                      <td className="px-2 py-1">{period.period}</td>
+                      <td className="px-2 py-1 text-red-600">
+                        ${period.interest.toLocaleString("es-CO")}
+                      </td>
+                      <td className="px-2 py-1 text-emerald-600">
+                        ${period.principal.toLocaleString("es-CO")}
+                      </td>
+                      <td className="px-2 py-1 font-medium">
+                        ${period.balance.toLocaleString("es-CO")}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 
@@ -144,8 +211,7 @@ export function DebtCard({ debt, onRegisterPayment, onDelete, onUpdate, isDeleti
         {debt.status === "active" && (
           <div className="pt-2">
             <AddPaymentDialog
-              debtId={debt.id}
-              currentBalance={debt.current_balance}
+              debt={debt}
               onSubmit={onRegisterPayment}
             />
           </div>

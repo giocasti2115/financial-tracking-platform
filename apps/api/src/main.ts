@@ -12,11 +12,30 @@ const allowedOrigins = env.CLIENT_ORIGIN.split(',')
   .map((origin) => origin.trim())
   .filter(Boolean);
 
-const corsOrigin =
-  allowedOrigins.length === 0 || allowedOrigins.includes('*') ? true : allowedOrigins;
+const allowAllOrigins = allowedOrigins.length === 0 || allowedOrigins.includes('*');
+const isDevelopment = env.NODE_ENV !== 'production';
+
+const corsOptions: cors.CorsOptions = {
+  credentials: true,
+  origin: (origin, callback) => {
+    if (!origin) {
+      return callback(null, true);
+    }
+
+    if (allowAllOrigins || allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+
+    if (isDevelopment && origin.startsWith('http://localhost:')) {
+      return callback(null, true);
+    }
+
+    return callback(new Error(`Origin ${origin} not allowed by CORS`));
+  }
+};
 
 app.use(helmet());
-app.use(cors({ origin: corsOrigin, credentials: true }));
+app.use(cors(corsOptions));
 app.use(express.json());
 app.use(pinoHttp({ level: env.LOG_LEVEL }));
 

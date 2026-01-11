@@ -4,13 +4,13 @@ import { useEffect, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/components/auth-provider"
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout"
-import { StatsCard } from "@/components/dashboard/stats-card"
 import { QuincenalOverview } from "@/components/dashboard/quincenal-overview"
 import { DebtSummary } from "@/components/dashboard/debt-summary"
+import { MetricsVisualization } from "@/components/dashboard/metrics-visualization"
 import { PageShell } from "@/components/dashboard/page-shell"
 import { calculations } from "@/lib/calculations"
 import type { QuincenalSummary } from "@/lib/types"
-import { Wallet, TrendingUp, CreditCard, PiggyBank, Loader2 } from "lucide-react"
+import { Loader2 } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { useQuery } from "@tanstack/react-query"
 import { apiClient } from "@/lib/api-client"
@@ -81,16 +81,51 @@ export default function DashboardPage() {
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
+        <Loader2 className="h-8 w-8 animate-spin text-[var(--brand-gold-600)]" />
       </div>
     )
   }
 
-  const totalIncome = calculations.calculateTotalIncome(incomes, new Date().getFullYear(), new Date().getMonth() + 1)
-  const totalExpenses = calculations.calculateTotalExpenses(expenses, new Date().getFullYear())
   const totalDebts = calculations.calculateTotalDebts(debts)
   const totalAssets = calculations.calculateTotalAssets(assets)
   const patrimony = calculations.calculatePatrimony(assets, debts)
+  const activeDebtCount = debts.filter((d) => d.status === "active").length
+
+  const summaryCards = [
+    {
+      key: "assets",
+      title: "Total Activos",
+      description: "Cuentas e inversiones",
+      value: totalAssets,
+      background: "bg-[#fff7ec]",
+      border: "border-[#f0e2cf]",
+      textColor: "text-[#1f2a37]",
+      shadow: "shadow-[0_20px_35px_rgba(4,23,36,0.08)]",
+      footnote: `${assets.length} cuentas registradas`,
+    },
+    {
+      key: "debts",
+      title: "Total Pasivos",
+      description: "Deudas vigentes",
+      value: totalDebts,
+      background: "bg-[#fbeff2]",
+      border: "border-[#f3d4db]",
+      textColor: "text-[#7a1f2d]",
+      shadow: "shadow-[0_20px_35px_rgba(122,31,45,0.1)]",
+      footnote: `${activeDebtCount} deudas activas`,
+    },
+    {
+      key: "patrimony",
+      title: "Patrimonio",
+      description: "Activos - Pasivos",
+      value: patrimony,
+      background: patrimony >= 0 ? "bg-[#f4f8f1]" : "bg-[#fbeff2]",
+      border: patrimony >= 0 ? "border-[#dfe8d5]" : "border-[#f3d4db]",
+      textColor: patrimony >= 0 ? "text-[#2f5130]" : "text-[#7a1f2d]",
+      shadow: "shadow-[0_20px_35px_rgba(4,23,36,0.08)]",
+      footnote: patrimony >= 0 ? "Saldo positivo" : "Patrimonio negativo",
+    },
+  ]
 
   return (
     <DashboardLayout>
@@ -101,43 +136,28 @@ export default function DashboardPage() {
           <p className="text-muted-foreground">Aquí está tu resumen financiero actualizado</p>
         </div>
 
-        {/* Stats Grid */}
-        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
-          <div className="min-w-0">
-            <StatsCard
-              title="Ingresos del Mes"
-              value={`$${totalIncome.toLocaleString("es-CO")}`}
-              description="Total de ingresos mensuales"
-              icon={Wallet}
-            />
-          </div>
-          <div className="min-w-0">
-            <StatsCard
-              title="Gastos Totales"
-              value={`$${totalExpenses.toLocaleString("es-CO")}`}
-              description="Gastos del año actual"
-              icon={TrendingUp}
-            />
-          </div>
-          <div className="min-w-0">
-            <StatsCard
-              title="Deudas Activas"
-              value={`$${totalDebts.toLocaleString("es-CO")}`}
-              description={`${debts.filter((d) => d.status === "active").length} deudas pendientes`}
-              icon={CreditCard}
-              className="border-red-200"
-            />
-          </div>
-          <div className="min-w-0">
-            <StatsCard
-              title="Patrimonio"
-              value={`$${patrimony.toLocaleString("es-CO")}`}
-              description="Activos - Pasivos"
-              icon={PiggyBank}
-              className="border-emerald-200"
-            />
-          </div>
+        {/* Summary Cards */}
+        <div className="grid gap-4 grid-cols-1 md:grid-cols-3">
+          {summaryCards.map((card) => (
+            <Card
+              key={card.key}
+              className={`${card.background} ${card.border} ${card.shadow} border rounded-2xl backdrop-blur-sm`}
+            >
+              <CardHeader>
+                <CardTitle>{card.title}</CardTitle>
+                <CardDescription>{card.description}</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className={`text-4xl font-bold ${card.textColor}`}>
+                  ${card.value.toLocaleString("es-CO")}
+                </div>
+                <p className="text-sm text-[#7b6d60] mt-2">{card.footnote}</p>
+              </CardContent>
+            </Card>
+          ))}
         </div>
+
+        <MetricsVisualization incomes={incomes} expenses={expenses} debts={debts} assets={assets} />
 
         {/* Main Content Grid */}
         <div className="grid gap-6 lg:grid-cols-2">
@@ -146,7 +166,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Assets Overview */}
-        <Card>
+        <Card className="rounded-2xl border-[#f0e2cf] bg-[#fffaf4] shadow-sm">
           <CardHeader>
             <CardTitle>Activos</CardTitle>
             <CardDescription>Tus cuentas de ahorro e inversiones</CardDescription>
@@ -155,12 +175,15 @@ export default function DashboardPage() {
             {assets.length > 0 ? (
               <div className="space-y-3">
                 {assets.map((asset) => (
-                  <div key={asset.id} className="flex items-center justify-between p-3 rounded-lg border">
+                  <div
+                    key={asset.id}
+                    className="flex items-center justify-between p-3 rounded-xl border border-[#f0e2cf] bg-white/70"
+                  >
                     <div>
                       <p className="font-medium">{asset.account_name}</p>
                       <p className="text-xs text-muted-foreground capitalize">{asset.account_type}</p>
                     </div>
-                    <p className="text-lg font-semibold text-emerald-600">
+                    <p className="text-lg font-semibold text-[#d9a441]">
                       ${asset.current_balance.toLocaleString("es-CO")}
                     </p>
                   </div>

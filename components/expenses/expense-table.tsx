@@ -1,10 +1,10 @@
 "use client"
 
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import type { Expense } from "@/lib/types"
+import type { Asset, Debt, Expense } from "@/lib/types"
 import { Pencil, Trash2, CheckCircle2, AlertCircle, DollarSign } from "lucide-react"
 import {
   AlertDialog,
@@ -21,18 +21,24 @@ import { RegisterPaymentDialog } from "./register-payment-dialog"
 
 interface ExpenseTableProps {
   expenses: Expense[]
+  debts: Debt[]
+  assets: Asset[]
   onDelete: (id: string) => void
   onEdit: (expense: Expense) => void
   onTogglePayment: (id: string) => void
-  onRegisterPayment: (expenseId: string, paymentAmount: number, notes?: string) => void
+  onRegisterPayment: (expenseId: string, paymentAmount: number, notes?: string, assetId?: string) => Promise<void> | void
 }
 
-export function ExpenseTable({ expenses, onDelete, onEdit, onTogglePayment, onRegisterPayment }: ExpenseTableProps) {
+export function ExpenseTable({ expenses, debts, assets, onDelete, onEdit, onTogglePayment, onRegisterPayment }: ExpenseTableProps) {
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [editExpense, setEditExpense] = useState<Expense | null>(null)
   const [editDialogOpen, setEditDialogOpen] = useState(false)
-  const [paymentExpense, setPaymentExpense] = useState<Expense | null>(null)
+  const [paymentContext, setPaymentContext] = useState<{ expense: Expense; debt?: Debt } | null>(null)
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false)
+
+  const debtMap = useMemo(() => new Map(debts.map((debt) => [debt.id, debt])), [debts])
+
+  const isExpenseLocked = (expense: Expense) => expense.is_paid || (expense.amount_paid ?? 0) > 0
 
   const handleDelete = () => {
     if (deleteId) {
@@ -42,6 +48,9 @@ export function ExpenseTable({ expenses, onDelete, onEdit, onTogglePayment, onRe
   }
 
   const handleEdit = (expense: Expense) => {
+    if (isExpenseLocked(expense)) {
+      return
+    }
     setEditExpense(expense)
     setEditDialogOpen(true)
   }
@@ -98,6 +107,7 @@ export function ExpenseTable({ expenses, onDelete, onEdit, onTogglePayment, onRe
               <TableHead>Pendiente</TableHead>
               <TableHead>Quincena</TableHead>
               <TableHead>Fecha</TableHead>
+              <TableHead>Deuda</TableHead>
               <TableHead className="text-right">Acciones</TableHead>
             </TableRow>
           </TableHeader>
@@ -110,6 +120,7 @@ export function ExpenseTable({ expenses, onDelete, onEdit, onTogglePayment, onRe
                   : ""
               const amountPaid = expense.amount_paid ?? 0
               const remaining = expense.amount - amountPaid
+              const locked = isExpenseLocked(expense)
 
               return (
                 <TableRow key={expense.id} className={rowClassName}>
@@ -139,6 +150,15 @@ export function ExpenseTable({ expenses, onDelete, onEdit, onTogglePayment, onRe
                   </TableCell>
                   <TableCell>{getPeriodBadge(expense.payment_period)}</TableCell>
                   <TableCell>{formatDate(expense.payment_date)}</TableCell>
+                  <TableCell>
+                    {expense.debt_id ? (
+                      <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">
+                        {debtMap.get(expense.debt_id)?.entity_name ?? "Deuda"}
+                      </Badge>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">—</span>
+                    )}
+                  </TableCell>
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-2">
                       {!expense.is_paid && (
@@ -147,7 +167,7 @@ export function ExpenseTable({ expenses, onDelete, onEdit, onTogglePayment, onRe
                           size="sm"
                           className="h-8 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
                           onClick={() => {
-                            setPaymentExpense(expense)
+                            setPaymentContext({ expense, debt: expense.debt_id ? debtMap.get(expense.debt_id) : undefined })
                             setPaymentDialogOpen(true)
                           }}
                         >
@@ -155,14 +175,26 @@ export function ExpenseTable({ expenses, onDelete, onEdit, onTogglePayment, onRe
                           Pagar
                         </Button>
                       )}
-                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(expense)}>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => handleEdit(expense)}
+                        disabled={locked}
+                        title={locked ? "Este gasto ya tiene pagos registrados" : undefined}
+                      >
                         <Pencil className="h-4 w-4" />
                       </Button>
                       <Button
                         variant="ghost"
                         size="icon"
                         className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
-                        onClick={() => setDeleteId(expense.id)}
+                        onClick={() => {
+                          if (locked) return
+                          setDeleteId(expense.id)
+                        }}
+                        disabled={locked}
+                        title={locked ? "No puedes eliminar un gasto con pagos" : undefined}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -180,12 +212,20 @@ export function ExpenseTable({ expenses, onDelete, onEdit, onTogglePayment, onRe
         open={editDialogOpen}
         onOpenChange={setEditDialogOpen}
         onSave={handleSaveEdit}
+        debts={debts}
       />
 
       <RegisterPaymentDialog
-        expense={paymentExpense}
+        expense={paymentContext?.expense ?? null}
+        debt={paymentContext?.debt}
+        assets={assets}
         open={paymentDialogOpen}
-        onOpenChange={setPaymentDialogOpen}
+        onOpenChange={(open) => {
+          setPaymentDialogOpen(open)
+          if (!open) {
+            setPaymentContext(null)
+          }
+        }}
         onRegisterPayment={onRegisterPayment}
       />
 

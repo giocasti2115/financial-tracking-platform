@@ -8,9 +8,9 @@ import { PageShell } from "@/components/dashboard/page-shell"
 import { AddDebtDialog } from "@/components/debts/add-debt-dialog"
 import { DebtCard } from "@/components/debts/debt-card"
 import { calculations } from "@/lib/calculations"
-import type { Asset, Debt } from "@/lib/types"
+import type { Debt } from "@/lib/types"
 import { Loader2 } from "lucide-react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { apiClient } from "@/lib/api-client"
@@ -27,11 +27,6 @@ export default function DebtsPage() {
   const { user, loading: authLoading } = useAuth()
   const router = useRouter()
   const queryClient = useQueryClient()
-  const { data: assets = [], isLoading: assetsLoading } = useQuery<Asset[]>({
-    queryKey: ["assets"],
-    queryFn: apiClient.getAssets,
-    enabled: !authLoading && Boolean(user),
-  })
   const [deletingDebtId, setDeletingDebtId] = useState<string | null>(null)
   const [updatingDebtId, setUpdatingDebtId] = useState<string | null>(null)
 
@@ -111,7 +106,7 @@ export default function DebtsPage() {
     }
   }
 
-  const isLoading = authLoading || debtsLoading || assetsLoading
+  const isLoading = authLoading || debtsLoading
 
   if (isLoading) {
     return (
@@ -124,9 +119,6 @@ export default function DebtsPage() {
   const activeDebts = debts.filter((d) => d.status === "active")
   const paidDebts = debts.filter((d) => d.status === "paid")
   const totalDebts = calculations.calculateTotalDebts(debts)
-  const totalAssets = calculations.calculateTotalAssets(assets)
-  const patrimony = calculations.calculatePatrimony(assets, debts)
-
   return (
     <DashboardLayout>
       <PageShell className="space-y-6">
@@ -138,39 +130,18 @@ export default function DebtsPage() {
           <AddDebtDialog onSubmit={handleAddDebt} />
         </div>
 
-        <div className="grid gap-4 md:grid-cols-3">
-          <Card className="border-red-200 bg-red-50/50">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Total Pasivos</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-red-600">${totalDebts.toLocaleString("es-CO")}</div>
-              <p className="text-xs text-muted-foreground mt-1">{activeDebts.length} deudas activas</p>
-            </CardContent>
-          </Card>
-
-          <Card className="border-emerald-200 bg-emerald-50/50">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Total Activos</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-emerald-600">${totalAssets.toLocaleString("es-CO")}</div>
-              <p className="text-xs text-muted-foreground mt-1">{assets.length} cuentas</p>
-            </CardContent>
-          </Card>
-
-          <Card className="border-blue-200 bg-blue-50/50">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Patrimonio</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className={`text-3xl font-bold ${patrimony >= 0 ? "text-blue-600" : "text-red-600"}`}>
-                ${patrimony.toLocaleString("es-CO")}
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">Activos - Pasivos</p>
-            </CardContent>
-          </Card>
-        </div>
+        <Card className="bg-gradient-to-br from-rose-50 to-red-50 border-rose-200">
+          <CardHeader>
+            <CardTitle>Total de Pasivos</CardTitle>
+            <CardDescription>Suma de tus deudas activas</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="text-4xl font-bold text-red-600">${totalDebts.toLocaleString("es-CO")}</div>
+            <p className="text-sm text-muted-foreground mt-2">
+              {activeDebts.length} deudas activas • {paidDebts.length} pagadas
+            </p>
+          </CardContent>
+        </Card>
 
         <Tabs defaultValue="active" className="space-y-4">
           <TabsList>

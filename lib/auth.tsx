@@ -16,6 +16,12 @@ interface LoginResponse {
   user: AuthUser
 }
 
+interface RegisterPayload {
+  name: string
+  email: string
+  password: string
+}
+
 const safeFetch = async (input: RequestInfo | URL, init?: RequestInit) => {
   try {
     return await fetch(input, init)
@@ -68,6 +74,19 @@ export const auth = {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password }),
+    })
+
+    const data = await handleResponse<LoginResponse>(response)
+    this.setSession(data.accessToken, data.refreshToken)
+    this.setCurrentUser(data.user)
+    return data.user
+  },
+
+  async register(payload: RegisterPayload): Promise<AuthUser> {
+    const response = await safeFetch(`${API_URL}/auth/register`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ fullName: payload.name, email: payload.email, password: payload.password }),
     })
 
     const data = await handleResponse<LoginResponse>(response)

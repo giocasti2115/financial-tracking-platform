@@ -2,6 +2,7 @@ export type PaymentPeriod = "primera_quincena" | "segunda_quincena"
 export type DebtStatus = "active" | "paid" | "pending"
 export type TransactionType = "deposit" | "withdrawal"
 export type AccountType = "savings" | "checking" | "investment"
+export type DebtPaymentFrequency = "monthly" | "biweekly"
 
 export interface User {
   id: string
@@ -33,6 +34,9 @@ export interface Expense {
   notes?: string
   is_paid: boolean
   paid_date?: string
+  debt_id?: string | null
+  asset_id?: string | null
+  debt?: Debt
   created_at: string
   updated_at: string
   category?: ExpenseCategory
@@ -61,6 +65,7 @@ export interface Debt {
   start_date?: string
   end_date?: string
   interest_rate?: number
+  payment_frequency?: DebtPaymentFrequency
   status: DebtStatus
   notes?: string
   created_at: string
@@ -72,6 +77,8 @@ export interface DebtPayment {
   debt_id: string
   user_id: string
   amount: number
+  interest_component?: number
+  principal_component?: number
   payment_date: string
   balance_after_payment: number
   notes?: string

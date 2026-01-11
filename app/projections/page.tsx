@@ -17,12 +17,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label"
 import { useQuery } from "@tanstack/react-query"
 import { apiClient } from "@/lib/api-client"
+import { clampFinancialYear, getFinancialYears } from "@/lib/utils"
 
 export default function ProjectionsPage() {
   const { user, loading: authLoading } = useAuth()
   const router = useRouter()
   const [projectionMonths, setProjectionMonths] = useState(12)
-  const [reportYear, setReportYear] = useState(new Date().getFullYear())
+  const [reportYear, setReportYear] = useState(clampFinancialYear(new Date().getFullYear()))
   const [reportSemester, setReportSemester] = useState<number | undefined>(undefined)
 
   const { data: debts = [], isLoading: debtsLoading } = useQuery<Debt[]>({
@@ -76,8 +77,7 @@ export default function ProjectionsPage() {
     )
   }
 
-  const currentYear = new Date().getFullYear()
-  const years = Array.from({ length: 5 }, (_, i) => currentYear - i)
+  const years = getFinancialYears()
 
   return (
     <DashboardLayout>

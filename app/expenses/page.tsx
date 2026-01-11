@@ -8,7 +8,7 @@ import { PageShell } from "@/components/dashboard/page-shell"
 import { AddExpenseDialog } from "@/components/expenses/add-expense-dialog"
 import { ExpenseTable } from "@/components/expenses/expense-table"
 import { ExpenseFilters } from "@/components/expenses/expense-filters"
-import type { Expense } from "@/lib/types"
+import type { Asset, Debt, Expense } from "@/lib/types"
 import { Loader2 } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { CloneExpensesDialog } from "@/components/expenses/clone-expenses-dialog"
@@ -16,22 +16,39 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { AlertCircle } from "lucide-react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { apiClient } from "@/lib/api-client"
+import { clampFinancialYear } from "@/lib/utils"
+import { useToast } from "@/hooks/use-toast"
 
 export default function ExpensesPage() {
+  const { toast } = useToast()
   const { user, loading: authLoading } = useAuth()
   const router = useRouter()
   const queryClient = useQueryClient()
+  const filterTemplate = useMemo(
+    () => ({
+      year: clampFinancialYear(new Date().getFullYear()).toString(),
+      semester: "all",
+      month: (new Date().getMonth() + 1).toString(),
+      period: "all",
+      search: "",
+    }),
+    [],
+  )
+  const [filters, setFilters] = useState(filterTemplate)
   const { data: expensesData = [], isLoading: expensesLoading } = useQuery({
     queryKey: ["expenses"],
     queryFn: apiClient.getExpenses,
     enabled: !authLoading && Boolean(user),
   })
-  const [filters, setFilters] = useState({
-    year: new Date().getFullYear().toString(),
-    semester: "all",
-    month: new Date().getMonth() + 1 + "", // Default to current month
-    period: "all",
-    search: "",
+  const { data: debtsData = [], isLoading: debtsLoading } = useQuery({
+    queryKey: ["debts"],
+    queryFn: apiClient.getDebts,
+    enabled: !authLoading && Boolean(user),
+  })
+  const { data: assetsData = [], isLoading: assetsLoading } = useQuery({
+    queryKey: ["assets"],
+    queryFn: apiClient.getAssets,
+    enabled: !authLoading && Boolean(user),
   })
 
   useEffect(() => {
@@ -40,7 +57,22 @@ export default function ExpensesPage() {
     }
   }, [user, authLoading, router])
 
+  const handleResetFilters = () => setFilters({ ...filterTemplate })
+
+  const hasActiveFilters = useMemo(() => {
+    return (
+      filters.year !== filterTemplate.year ||
+      filters.semester !== filterTemplate.semester ||
+      filters.month !== filterTemplate.month ||
+      filters.period !== filterTemplate.period ||
+      filters.search.trim().length > 0
+    )
+  }, [filters, filterTemplate])
+
   const expenses = expensesData || []
+  const debts = debtsData || []
+  const assets = assetsData || []
+  const debtMap = useMemo(() => new Map(debts.map((debt) => [debt.id, debt])), [debts])
 
   const filteredExpenses = useMemo(() => {
     let filtered = [...expenses]
@@ -54,9 +86,10 @@ export default function ExpensesPage() {
     }
 
     if (filters.month !== "all") {
+      const selectedMonth = Number.parseInt(filters.month)
       filtered = filtered.filter((expense) => {
-        const expenseDate = new Date(expense.payment_date)
-        return expenseDate.getMonth() + 1 === Number.parseInt(filters.month)
+        const [, month] = expense.payment_date.split("-")
+        return Number.parseInt(month) === selectedMonth
       })
     }
 
@@ -64,14 +97,21 @@ export default function ExpensesPage() {
       filtered = filtered.filter((expense) => expense.payment_period === filters.period)
     }
 
-    if (filters.search) {
-      filtered = filtered.filter((expense) =>
-        expense.description.toLowerCase().includes(filters.search.toLowerCase()),
-      )
+    const searchTerm = filters.search.trim().toLowerCase()
+    if (searchTerm) {
+      filtered = filtered.filter((expense) => {
+        const notesMatch = expense.notes?.toLowerCase().includes(searchTerm)
+        const debtName = expense.debt_id ? debtMap.get(expense.debt_id)?.entity_name.toLowerCase() ?? "" : ""
+        return (
+          expense.description.toLowerCase().includes(searchTerm) ||
+          Boolean(notesMatch) ||
+          debtName.includes(searchTerm)
+        )
+      })
     }
 
-    return filtered.sort((a, b) => new Date(b.payment_date).getTime() - new Date(a.payment_date).getTime())
-  }, [expenses, filters])
+    return filtered.sort((a, b) => b.payment_date.localeCompare(a.payment_date))
+  }, [expenses, filters, debtMap])
 
   const createExpenseMutation = useMutation({
     mutationFn: apiClient.createExpense,
@@ -92,7 +132,21 @@ export default function ExpensesPage() {
   const registerPaymentMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: Parameters<typeof apiClient.registerExpensePayment>[1] }) =>
       apiClient.registerExpensePayment(id, data),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["expenses"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["expenses"] })
+      queryClient.invalidateQueries({ queryKey: ["debts"] })
+      queryClient.invalidateQueries({ queryKey: ["assets"] })
+      toast({
+        title: "Pago registrado",
+        description: "Actualizamos el gasto y su deuda vinculada.",
+      })
+    },
+    onError: (error: Error) =>
+      toast({
+        variant: "destructive",
+        title: "No pudimos registrar el pago",
+        description: error.message,
+      }),
   })
 
   const handleAddExpense = async (newExpense: Omit<Expense, "id" | "created_at" | "updated_at">) => {
@@ -106,6 +160,8 @@ export default function ExpensesPage() {
       notes: newExpense.notes,
       is_paid: newExpense.is_paid,
       amount_paid: newExpense.amount_paid ?? 0,
+      debt_id: newExpense.debt_id ?? null,
+      asset_id: newExpense.asset_id ?? null,
     })
   }
 
@@ -124,6 +180,7 @@ export default function ExpensesPage() {
         semester: updatedExpense.semester,
         year: updatedExpense.year,
         notes: updatedExpense.notes,
+        debt_id: updatedExpense.debt_id ?? null,
       },
     })
   }
@@ -143,34 +200,52 @@ export default function ExpensesPage() {
   }
 
   const handleCloneExpenses = async (clonedExpenses: Omit<Expense, "id" | "created_at" | "updated_at">[]) => {
-    await Promise.all(
-      clonedExpenses.map((expense) =>
-        createExpenseMutation.mutateAsync({
-          description: expense.description,
-          amount: expense.amount,
-          payment_date: expense.payment_date,
-          payment_period: expense.payment_period,
-          semester: expense.semester,
-          year: expense.year,
-          notes: expense.notes,
-        }),
-      ),
-    )
-
-    alert(`${clonedExpenses.length} gastos clonados exitosamente`)
+    try {
+      await Promise.all(
+        clonedExpenses.map((expense) =>
+          createExpenseMutation.mutateAsync({
+            description: expense.description,
+            amount: expense.amount,
+            payment_date: expense.payment_date,
+            payment_period: expense.payment_period,
+            semester: expense.semester,
+            year: expense.year,
+            notes: expense.notes,
+            debt_id: expense.debt_id ?? null,
+            asset_id: expense.asset_id ?? null,
+            is_paid: false,
+            amount_paid: 0,
+          }),
+        ),
+      )
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "No pudimos clonar los gastos."
+      toast({
+        variant: "destructive",
+        title: "Error al clonar",
+        description: message,
+      })
+      throw error
+    }
   }
 
-  const handleRegisterPayment = async (expenseId: string, paymentAmount: number, notes?: string) => {
+  const handleRegisterPayment = async (
+    expenseId: string,
+    paymentAmount: number,
+    notes?: string,
+    assetId?: string,
+  ) => {
     await registerPaymentMutation.mutateAsync({
       id: expenseId,
       data: {
         amount: paymentAmount,
         notes,
+        asset_id: assetId,
       },
     })
   }
 
-  if (authLoading || expensesLoading) {
+  if (authLoading || expensesLoading || debtsLoading || assetsLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
@@ -202,7 +277,7 @@ export default function ExpensesPage() {
           <div className="flex gap-2">
             {/* Clone button */}
             <CloneExpensesDialog expenses={expenses} onClone={handleCloneExpenses} />
-            <AddExpenseDialog onAdd={handleAddExpense} />
+            <AddExpenseDialog onAdd={handleAddExpense} debts={debts} assets={assets} />
           </div>
         </div>
 
@@ -252,11 +327,18 @@ export default function ExpensesPage() {
         </Card>
 
         {/* Filters */}
-        <ExpenseFilters filters={filters} onFilterChange={setFilters} />
+        <ExpenseFilters
+          filters={filters}
+          onFilterChange={setFilters}
+          onReset={handleResetFilters}
+          isDirty={hasActiveFilters}
+        />
 
         {/* Expenses Table */}
         <ExpenseTable
           expenses={filteredExpenses}
+          debts={debts}
+          assets={assets}
           onDelete={handleDeleteExpense}
           onEdit={handleEditExpense}
           onTogglePayment={handleTogglePayment}

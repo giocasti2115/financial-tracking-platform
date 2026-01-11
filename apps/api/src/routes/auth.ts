@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { loginSchema, refreshSchema } from '../schemas/auth.js';
+import { loginSchema, refreshSchema, registerSchema } from '../schemas/auth.js';
 import { AuthService } from '../services/auth-service.js';
 import { asyncHandler } from '../utils/async-handler.js';
 
@@ -14,6 +14,18 @@ authRouter.post(
       userAgent: req.headers['user-agent']
     });
     res.json(tokens);
+  })
+);
+
+authRouter.post(
+  '/register',
+  asyncHandler(async (req, res) => {
+    const body = registerSchema.parse(req.body);
+    const tokens = await AuthService.register(
+      { fullName: body.fullName, email: body.email, password: body.password },
+      { ip: req.ip, userAgent: req.headers['user-agent'] }
+    );
+    res.status(201).json(tokens);
   })
 );
 

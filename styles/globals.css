@@ -4,74 +4,93 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
+  --brand-navy-900: #030f1c;
+  --brand-navy-800: #05182a;
+  --brand-navy-700: #0b2438;
+  --brand-navy-600: #112f45;
+  --brand-navy-500: #1c3b57;
+  --brand-navy-300: #4b6074;
+  --brand-cream: #f5f2ea;
+  --brand-ivory: #fdfaf2;
+  --brand-stone: #e6e2d7;
+  --brand-gold-50: #fff8ed;
+  --brand-gold-100: #fcefdc;
+  --brand-gold-200: #f2ddb9;
+  --brand-gold-300: #ebcb96;
+  --brand-gold-400: #e3bc80;
+  --brand-gold-500: #d6a347;
+  --brand-gold-600: #b78132;
+  --brand-gold-700: #8f6426;
+  --brand-success: #29a88f;
+  --brand-soft-blue: #edf2f7;
+  --background: var(--brand-cream);
+  --foreground: var(--brand-navy-900);
+  --card: var(--brand-ivory);
+  --card-foreground: var(--brand-navy-900);
+  --popover: #ffffff;
+  --popover-foreground: var(--brand-navy-900);
+  --primary: var(--brand-gold-500);
+  --primary-foreground: var(--brand-navy-900);
+  --secondary: #e2e6eb;
+  --secondary-foreground: var(--brand-navy-700);
+  --muted: #e8ebf1;
+  --muted-foreground: #5c6672;
+  --accent: #dfe4ec;
+  --accent-foreground: var(--brand-navy-800);
+  --destructive: #c44545;
+  --destructive-foreground: #ffffff;
+  --border: #e1e5ec;
+  --input: #dee2ea;
+  --ring: var(--brand-gold-400);
+  --chart-1: #d6a347;
+  --chart-2: #668fbd;
+  --chart-3: #3f6b8e;
+  --chart-4: #f1c27d;
+  --chart-5: #8f6426;
   --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --sidebar: var(--brand-navy-900);
+  --sidebar-foreground: var(--brand-ivory);
+  --sidebar-primary: var(--brand-gold-500);
+  --sidebar-primary-foreground: var(--brand-navy-900);
+  --sidebar-accent: #0f263c;
+  --sidebar-accent-foreground: var(--brand-ivory);
+  --sidebar-border: #1c3247;
+  --sidebar-ring: var(--brand-gold-400);
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.145 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.145 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.985 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.396 0.141 25.723);
-  --destructive-foreground: oklch(0.637 0.237 25.331);
-  --border: oklch(0.269 0 0);
-  --input: oklch(0.269 0 0);
-  --ring: oklch(0.439 0 0);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(0.269 0 0);
-  --sidebar-ring: oklch(0.439 0 0);
+  --background: #030f1c;
+  --foreground: #f5f2ea;
+  --card: #05182a;
+  --card-foreground: #f5f2ea;
+  --popover: #05182a;
+  --popover-foreground: #f5f2ea;
+  --primary: var(--brand-gold-500);
+  --primary-foreground: #030f1c;
+  --secondary: #0b1f31;
+  --secondary-foreground: #f5f2ea;
+  --muted: #0b1f31;
+  --muted-foreground: #9fb0c1;
+  --accent: #12283e;
+  --accent-foreground: #f5f2ea;
+  --destructive: #ff6b6b;
+  --destructive-foreground: #030f1c;
+  --border: #102036;
+  --input: #102036;
+  --ring: var(--brand-gold-400);
+  --chart-1: #d6a347;
+  --chart-2: #7fb4dd;
+  --chart-3: #5a83a5;
+  --chart-4: #f1c27d;
+  --chart-5: #8f6426;
+  --sidebar: #05182a;
+  --sidebar-foreground: #f5f2ea;
+  --sidebar-primary: var(--brand-gold-500);
+  --sidebar-primary-foreground: #030f1c;
+  --sidebar-accent: #0b2235;
+  --sidebar-accent-foreground: #f5f2ea;
+  --sidebar-border: #102036;
+  --sidebar-ring: var(--brand-gold-400);
 }
 
 @theme inline {
@@ -121,5 +140,56 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-feature-settings: 'ss01' on, 'ss02' on;
+    background-image: radial-gradient(circle at 10% 20%, rgba(255, 255, 255, 0.8), transparent 35%),
+      radial-gradient(circle at 90% 10%, rgba(255, 248, 237, 0.9), transparent 30%),
+      linear-gradient(120deg, rgba(3, 15, 28, 0.02), rgba(214, 163, 71, 0.05));
+  }
+
+  .bg-emerald-600 {
+    background-color: var(--brand-gold-500) !important;
+    color: var(--brand-navy-900);
+  }
+
+  .hover\:bg-emerald-700:hover,
+  .bg-emerald-700 {
+    background-color: var(--brand-gold-600) !important;
+  }
+
+  .text-emerald-600 {
+    color: var(--brand-gold-600) !important;
+  }
+
+  .text-emerald-700 {
+    color: var(--brand-gold-700) !important;
+  }
+
+  .text-emerald-100 {
+    color: var(--brand-gold-100) !important;
+  }
+
+  .bg-emerald-50,
+  .hover\:bg-emerald-50:hover {
+    background-color: var(--brand-gold-50) !important;
+  }
+
+  .bg-emerald-100 {
+    background-color: var(--brand-gold-100) !important;
+  }
+
+  .border-emerald-200 {
+    border-color: var(--brand-gold-200) !important;
+  }
+
+  .border-emerald-600 {
+    border-color: var(--brand-gold-500) !important;
+  }
+
+  .bg-emerald-500 {
+    background-color: var(--brand-gold-400) !important;
+  }
+
+  .hover\:text-emerald-700:hover {
+    color: var(--brand-gold-700) !important;
   }
 }
