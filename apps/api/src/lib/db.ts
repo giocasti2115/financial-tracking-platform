@@ -1,4 +1,4 @@
-import { Pool } from 'pg';
+import { Pool, type QueryResultRow } from 'pg';
 import { env } from '../env.js';
 
 export const db = new Pool({
@@ -6,4 +6,5 @@ export const db = new Pool({
   max: 10
 });
 
-export const query = async <T = unknown>(text: string, params?: unknown[]) => db.query<T>(text, params);
+export const query = async <T extends QueryResultRow = QueryResultRow>(text: string, params?: unknown[]) =>
+  db.query<T>(text, params);

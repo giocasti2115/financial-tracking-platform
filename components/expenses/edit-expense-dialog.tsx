@@ -92,12 +92,13 @@ export function EditExpenseDialog({ expense, open, onOpenChange, onSave, debts }
 
   useEffect(() => {
     if (expense) {
+      const semesterValue: "1" | "2" = expense.semester === 2 ? "2" : "1"
       form.reset({
         description: expense.description,
         amount: expense.amount.toString(),
         payment_date: normalizeDateInput(expense.payment_date),
         payment_period: expense.payment_period,
-        semester: expense.semester.toString(),
+        semester: semesterValue,
         year: expense.year.toString(),
         notes: expense.notes || "",
         debt_id: expense.debt_id ?? NO_DEBT_VALUE,

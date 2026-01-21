@@ -14,6 +14,7 @@ import {
   Menu,
   X,
   ChevronLeft,
+  Coffee,
 } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
@@ -32,6 +33,7 @@ export function Sidebar() {
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
     { href: "/income", label: "Ingresos", icon: TrendingUp },
     { href: "/expenses", label: "Gastos", icon: Receipt },
+    { href: "/micro-expenses", label: "Gastos Hormiga", icon: Coffee },
     { href: "/debts", label: "Deudas", icon: CreditCard },
     { href: "/assets", label: "Activos", icon: PiggyBank },
     { href: "/projections", label: "Proyecciones", icon: TrendingUp },

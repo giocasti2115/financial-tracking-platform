@@ -41,9 +41,11 @@ const handleResponse = async <T>(response: Response): Promise<T> => {
   return response.json() as Promise<T>
 }
 
+export const currentUser = () => storage.get<AuthUser>(STORAGE_KEYS.USER)
+
 export const auth = {
   getCurrentUser(): AuthUser | null {
-    return storage.get<AuthUser>(STORAGE_KEYS.USER)
+    return currentUser()
   },
 
   setCurrentUser(user: AuthUser): void {

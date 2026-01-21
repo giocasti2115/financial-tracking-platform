@@ -8,13 +8,18 @@ export const notFoundHandler = (req: Request, _res: Response, next: NextFunction
 
 // Centralized error translator keeps responses consistent.
 export const errorHandler = (err: unknown, _req: Request, res: Response, _next: NextFunction) => {
-  const status = createError.isHttpError(err) ? err.statusCode : 500;
-  const message = createError.isHttpError(err) ? err.message : 'Internal server error';
-  const payload: Record<string, unknown> = { message };
-
-  if (status === 500 && env.NODE_ENV !== 'production') {
-    payload.stack = err instanceof Error ? err.stack : err;
+  if (createError.isHttpError(err)) {
+    res.status(err.statusCode).json({ message: err.message });
+    return;
   }
 
-  res.status(status).json(payload);
+  const payload: Record<string, unknown> = {
+    message: 'Internal server error'
+  };
+
+  if (env.NODE_ENV !== 'production') {
+    payload.stack = err instanceof Error ? err.stack : String(err);
+  }
+
+  res.status(500).json(payload);
 };

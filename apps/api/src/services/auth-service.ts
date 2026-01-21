@@ -29,7 +29,7 @@ export const AuthService = {
     const fullName = input.fullName.trim();
 
     const existing = await query<{ id: string }>('SELECT id FROM users WHERE email = $1', [email]);
-    if (existing.rowCount > 0) {
+    if ((existing.rowCount ?? 0) > 0) {
       throw createError(409, 'Ya existe una cuenta con este correo.');
     }
 

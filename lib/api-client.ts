@@ -1,5 +1,14 @@
 import { auth } from "./auth"
-import type { Asset, Debt, Expense, Income, PaymentPeriod, DebtPaymentFrequency } from "./types"
+import type {
+  Asset,
+  Debt,
+  Expense,
+  Income,
+  PaymentPeriod,
+  DebtPaymentFrequency,
+  MicroExpense,
+  MicroExpenseSummary,
+} from "./types"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000"
 const NETWORK_ERROR_MESSAGE =
@@ -73,6 +82,14 @@ type NewAssetPayload = {
 
 type UpdateAssetPayload = Partial<Omit<NewAssetPayload, "current_balance">> & {
   current_balance?: number
+}
+
+type NewMicroExpensePayload = {
+  description: string
+  amount: number
+  category?: string
+  occurred_on?: string
+  notes?: string
 }
 
 const safeFetch = async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -237,6 +254,28 @@ export const apiClient = {
     })
     return response.data
   },
+
+  // Micro expenses
+  getMicroExpenses: async (month?: string) => {
+    const query = month ? `?month=${encodeURIComponent(month)}` : ""
+    const response = await request<ApiResponse<MicroExpense[]>>(`/micro-expenses${query}`)
+    return response.data
+  },
+  createMicroExpense: async (payload: NewMicroExpensePayload) => {
+    const response = await request<ApiResponse<MicroExpense>>(`/micro-expenses`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    })
+    return response.data
+  },
+  deleteMicroExpense: async (id: string) => {
+    await request(`/micro-expenses/${id}`, { method: "DELETE" })
+  },
+  getMicroExpenseSummary: async (month?: string) => {
+    const query = month ? `?month=${encodeURIComponent(month)}` : ""
+    const response = await request<ApiResponse<MicroExpenseSummary>>(`/micro-expenses/summary${query}`)
+    return response.data
+  },
 }
 
 export type {
@@ -249,4 +288,5 @@ export type {
   NewAssetPayload,
   UpdateAssetPayload,
   UpdateDebtPayload,
+  NewMicroExpensePayload,
 }

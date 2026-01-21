@@ -2,7 +2,7 @@
 
 import { useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { auth } from "@/lib/auth"
+import { currentUser } from "@/lib/auth"
 import { Loader2 } from "lucide-react"
 
 export default function HomePage() {
@@ -10,7 +10,7 @@ export default function HomePage() {
 
   useEffect(() => {
     // Redirect to dashboard if authenticated, otherwise to login
-    const user = auth.getCurrentUser()
+    const user = currentUser()
     if (user) {
       router.push("/dashboard")
     } else {

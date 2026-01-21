@@ -10,8 +10,11 @@ import type {
   ExpenseInput,
   ExpensePaymentInput,
   ExpenseUpdateInput,
-  IncomeInput
+  IncomeInput,
+  MicroExpenseInput
 } from '../schemas/finance.js';
+
+const isPgDatabaseError = (error: unknown): error is DatabaseError => error instanceof DatabaseError;
 
 const toNumber = (value: string | number | null | undefined) => {
   if (value === null || value === undefined) return null;
@@ -56,6 +59,18 @@ const mapAsset = (row: Record<string, any>) => ({
   created_at: row.created_at ? new Date(row.created_at).toISOString() : new Date().toISOString(),
   updated_at: row.updated_at ? new Date(row.updated_at).toISOString() : new Date().toISOString(),
   currency_code: row.currency_code
+});
+
+const mapMicroExpense = (row: Record<string, any>) => ({
+  id: row.id,
+  user_id: row.user_id,
+  description: row.description,
+  amount: Number(row.amount),
+  category: row.category ?? null,
+  occurred_on: row.occurred_on instanceof Date ? row.occurred_on.toISOString().slice(0, 10) : row.occurred_on,
+  notes: row.notes ?? null,
+  created_at: row.created_at ? new Date(row.created_at).toISOString() : new Date().toISOString(),
+  updated_at: row.updated_at ? new Date(row.updated_at).toISOString() : new Date().toISOString()
 });
 
 const ensureCurrencyExists = async (code: string) => {
@@ -180,6 +195,26 @@ const buildUpdateSet = (payload: Record<string, unknown>) => {
 
   assignments.push(`updated_at = NOW()`);
   return { assignments, values };
+};
+
+const toIsoDate = (date: Date) => date.toISOString().slice(0, 10);
+
+const getMonthBounds = (month?: string) => {
+  let reference = new Date();
+  if (month) {
+    const [yearStr, monthStr] = month.split('-');
+    const year = Number(yearStr);
+    const monthIndex = Number(monthStr) - 1;
+    reference = new Date(Date.UTC(year, monthIndex, 1));
+  }
+
+  const start = new Date(Date.UTC(reference.getUTCFullYear(), reference.getUTCMonth(), 1));
+  const end = new Date(Date.UTC(reference.getUTCFullYear(), reference.getUTCMonth() + 1, 1));
+
+  return {
+    startDate: toIsoDate(start),
+    endDate: toIsoDate(end)
+  };
 };
 
 export const FinanceService = {
@@ -453,9 +488,9 @@ export const FinanceService = {
 
       await client.query('COMMIT');
       return mapExpense(updatedExpense.rows[0]);
-    } catch (error) {
+    } catch (error: unknown) {
       await client.query('ROLLBACK');
-      if (error instanceof DatabaseError) {
+      if (isPgDatabaseError(error)) {
         console.error('[registerExpensePayment] database error:', error.message, error.detail);
         throw createError(400, error.detail || error.message);
       }
@@ -655,5 +690,89 @@ export const FinanceService = {
     } finally {
       client.release();
     }
+  },
+
+  listMicroExpenses: async (userId: string, month?: string) => {
+    const { startDate, endDate } = getMonthBounds(month);
+    const result = await query(
+      `SELECT id, user_id, description, category, amount, occurred_on, notes, created_at, updated_at
+       FROM micro_expenses
+       WHERE user_id = $1
+         AND occurred_on >= $2
+         AND occurred_on < $3
+       ORDER BY occurred_on DESC, created_at DESC` ,
+      [userId, startDate, endDate]
+    );
+    return result.rows.map(mapMicroExpense);
+  },
+
+  createMicroExpense: async (userId: string, payload: MicroExpenseInput) => {
+    const occurredOn = payload.occurred_on ?? toIsoDate(new Date());
+    const result = await query(
+      `INSERT INTO micro_expenses (user_id, description, amount, category, occurred_on, notes)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING id, user_id, description, category, amount, occurred_on, notes, created_at, updated_at` ,
+      [userId, payload.description, payload.amount, payload.category ?? null, occurredOn, payload.notes ?? null]
+    );
+    return mapMicroExpense(result.rows[0]);
+  },
+
+  deleteMicroExpense: async (userId: string, microExpenseId: string) => {
+    const result = await query('DELETE FROM micro_expenses WHERE id = $1 AND user_id = $2', [microExpenseId, userId]);
+    if (!result.rowCount) {
+      throw createError(404, 'Gasto hormiga no encontrado');
+    }
+  },
+
+  getMicroExpenseSummary: async (userId: string, month?: string) => {
+    const { startDate, endDate } = getMonthBounds(month);
+
+    const aggregate = await query(
+      `SELECT COALESCE(SUM(amount), 0) AS total, COUNT(*)::INT AS count
+         FROM micro_expenses
+        WHERE user_id = $1 AND occurred_on >= $2 AND occurred_on < $3` ,
+      [userId, startDate, endDate]
+    );
+
+    const totalAmount = Number(aggregate.rows[0]?.total ?? 0);
+    const totalCount = Number(aggregate.rows[0]?.count ?? 0);
+
+    const categories = await query(
+      `SELECT COALESCE(NULLIF(category, ''), 'Sin categoría') AS category,
+              SUM(amount) AS total,
+              COUNT(*)::INT AS count
+         FROM micro_expenses
+        WHERE user_id = $1 AND occurred_on >= $2 AND occurred_on < $3
+        GROUP BY category
+        ORDER BY total DESC` ,
+      [userId, startDate, endDate]
+    );
+
+    const daily = await query(
+      `SELECT occurred_on::text AS occurred_on, SUM(amount) AS total
+         FROM micro_expenses
+        WHERE user_id = $1 AND occurred_on >= $2 AND occurred_on < $3
+        GROUP BY occurred_on
+        ORDER BY occurred_on` ,
+      [userId, startDate, endDate]
+    );
+
+    return {
+      total: totalAmount,
+      count: totalCount,
+      categories: categories.rows.map((row) => {
+        const categoryTotal = Number(row.total);
+        return {
+          category: row.category ?? 'Sin categoría',
+          total: categoryTotal,
+          count: Number(row.count),
+          percentage: totalAmount > 0 ? categoryTotal / totalAmount : 0
+        };
+      }),
+      daily_totals: daily.rows.map((row) => ({
+        occurred_on: row.occurred_on,
+        total: Number(row.total)
+      }))
+    };
   }
 };

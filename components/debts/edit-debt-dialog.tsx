@@ -37,21 +37,17 @@ const formatNumberField = (value: number | null | undefined) =>
 const PAYMENT_FREQUENCIES = [
   { label: "Mensual", value: "monthly" },
   { label: "Quincenal", value: "biweekly" },
-]
+] as const
 
-const buildInitialState = (debt: Debt) => ({
-  debt_type: debt.debt_type || "Credito",
-  entity_name: debt.entity_name,
-  original_amount: debt.original_amount.toString(),
-  current_balance: debt.current_balance.toString(),
-  monthly_payment: formatNumberField(debt.monthly_payment),
-  payment_frequency: debt.payment_frequency ?? "monthly",
-  payment_day: formatNumberField(debt.payment_day),
-  start_date: debt.start_date ? debt.start_date.slice(0, 10) : "",
-  end_date: debt.end_date ? debt.end_date.slice(0, 10) : "",
-  interest_rate: formatNumberField(debt.interest_rate),
-  notes: debt.notes ?? "",
-})
+const DEBT_TYPES = ["Credito", "Prestamo", "Tarjeta", "Hipoteca", "Otro"] as const
+
+const isDebtType = (value: string | null | undefined): value is (typeof DEBT_TYPES)[number] =>
+  typeof value === 'string' && DEBT_TYPES.includes(value as (typeof DEBT_TYPES)[number])
+
+const isPaymentFrequency = (
+  value: string | null | undefined,
+): value is (typeof PAYMENT_FREQUENCIES)[number]['value'] =>
+  typeof value === 'string' && PAYMENT_FREQUENCIES.some((option) => option.value === value)
 
 interface EditDebtDialogProps {
   debt: Debt
@@ -156,9 +152,25 @@ export function EditDebtDialog({ debt, onSubmit, isUpdating }: EditDebtDialogPro
 
   const [open, setOpen] = useState(false)
 
-  const defaultValues = useMemo(() => buildInitialState(debt), [debt])
+  type DebtFormValues = z.infer<typeof formSchema>
 
-  const form = useForm<z.infer<typeof formSchema>>({
+  const buildInitialState = (currentDebt: Debt): DebtFormValues => ({
+    debt_type: isDebtType(currentDebt.debt_type) ? currentDebt.debt_type : "Credito",
+    entity_name: currentDebt.entity_name,
+    original_amount: currentDebt.original_amount.toString(),
+    current_balance: currentDebt.current_balance.toString(),
+    monthly_payment: formatNumberField(currentDebt.monthly_payment),
+    payment_frequency: isPaymentFrequency(currentDebt.payment_frequency) ? currentDebt.payment_frequency : "monthly",
+    payment_day: formatNumberField(currentDebt.payment_day),
+    start_date: currentDebt.start_date ? currentDebt.start_date.slice(0, 10) : "",
+    end_date: currentDebt.end_date ? currentDebt.end_date.slice(0, 10) : "",
+    interest_rate: formatNumberField(currentDebt.interest_rate),
+    notes: currentDebt.notes ?? "",
+  })
+
+  const defaultValues = useMemo<DebtFormValues>(() => buildInitialState(debt), [debt])
+
+  const form = useForm<DebtFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues,
   })

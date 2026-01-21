@@ -7,9 +7,10 @@ import { cn } from "@/lib/utils"
 import { useState, useEffect } from "react"
 import { useAuth } from "@/components/auth-provider"
 import { useQueryClient } from "@tanstack/react-query"
+import type { QueryKey } from "@tanstack/react-query"
 import { apiClient } from "@/lib/api-client"
 
-const PREFETCHED_QUERIES = [
+const PREFETCHED_QUERIES: Array<{ key: QueryKey; fn: () => Promise<unknown> }> = [
   { key: ["expenses"], fn: apiClient.getExpenses },
   { key: ["incomes"], fn: apiClient.getIncomes },
   { key: ["debts"], fn: apiClient.getDebts },

@@ -14,12 +14,16 @@ type BeforeInstallPromptEvent = Event & {
   prompt: () => Promise<void>
 }
 
+type NavigatorWithStandalone = Navigator & { standalone?: boolean }
+
 const isStandalone = () => {
   if (typeof window === "undefined") {
     return false
   }
 
-  return window.matchMedia("(display-mode: standalone)").matches || (window.navigator as Record<string, unknown>).standalone === true
+  const navigatorWithStandalone = window.navigator as NavigatorWithStandalone
+
+  return window.matchMedia("(display-mode: standalone)").matches || navigatorWithStandalone.standalone === true
 }
 
 export function InstallPromptBanner() {

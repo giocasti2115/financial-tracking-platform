@@ -130,6 +130,19 @@ CREATE TABLE IF NOT EXISTS expense_payments (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Micro Expenses --------------------------------------------------------
+CREATE TABLE IF NOT EXISTS micro_expenses (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  description TEXT NOT NULL,
+  amount DECIMAL(12, 2) NOT NULL CHECK (amount >= 0),
+  category TEXT,
+  occurred_on DATE NOT NULL DEFAULT CURRENT_DATE,
+  notes TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- Debts ------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS debts (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -193,6 +206,8 @@ CREATE INDEX IF NOT EXISTS idx_incomes_user_period ON incomes(user_id, year DESC
 CREATE INDEX IF NOT EXISTS idx_expenses_user_payment ON expenses(user_id, payment_date DESC);
 CREATE INDEX IF NOT EXISTS idx_expenses_is_paid ON expenses(is_paid);
 CREATE INDEX IF NOT EXISTS idx_expense_payments_expense ON expense_payments(expense_id, payment_date DESC);
+CREATE INDEX IF NOT EXISTS idx_micro_expenses_user_date ON micro_expenses(user_id, occurred_on DESC);
+CREATE INDEX IF NOT EXISTS idx_micro_expenses_user_month ON micro_expenses(user_id, date_trunc('month', occurred_on));
 CREATE INDEX IF NOT EXISTS idx_debts_user_status ON debts(user_id, status);
 CREATE INDEX IF NOT EXISTS idx_debt_payments_debt ON debt_payments(debt_id, payment_date DESC);
 CREATE INDEX IF NOT EXISTS idx_projections_user_period ON projections(user_id, period_start, period_end);

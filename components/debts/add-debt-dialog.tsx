@@ -136,14 +136,16 @@ export function AddDebtDialog({ onSubmit }: AddDebtDialogProps) {
       }
     })
 
-  const defaultValues = useMemo(
+  type DebtFormValues = z.infer<typeof formSchema>
+
+  const defaultValues = useMemo<DebtFormValues>(
     () => ({
       debt_type: "Credito",
       entity_name: "",
       original_amount: "",
       current_balance: "",
       monthly_payment: "",
-      payment_frequency: "monthly" as "monthly" | "biweekly",
+      payment_frequency: "monthly",
       payment_day: "",
       start_date: "",
       end_date: "",
@@ -153,7 +155,7 @@ export function AddDebtDialog({ onSubmit }: AddDebtDialogProps) {
     [],
   )
 
-  const form = useForm<z.infer<typeof formSchema>>({
+  const form = useForm<DebtFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues,
   })

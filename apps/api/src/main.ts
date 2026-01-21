@@ -8,9 +8,12 @@ import { registerRoutes } from './routes/index.js';
 
 const app = express();
 
+const normalizeOrigin = (origin: string) => origin.replace(/\/$/, '');
+
 const allowedOrigins = env.CLIENT_ORIGIN.split(',')
   .map((origin) => origin.trim())
-  .filter(Boolean);
+  .filter(Boolean)
+  .map(normalizeOrigin);
 
 const allowAllOrigins = allowedOrigins.length === 0 || allowedOrigins.includes('*');
 const isDevelopment = env.NODE_ENV !== 'production';
@@ -22,11 +25,13 @@ const corsOptions: cors.CorsOptions = {
       return callback(null, true);
     }
 
-    if (allowAllOrigins || allowedOrigins.includes(origin)) {
+    const normalizedOrigin = normalizeOrigin(origin);
+
+    if (allowAllOrigins || allowedOrigins.includes(normalizedOrigin)) {
       return callback(null, true);
     }
 
-    if (isDevelopment && origin.startsWith('http://localhost:')) {
+    if (isDevelopment && normalizedOrigin.startsWith('http://localhost:')) {
       return callback(null, true);
     }
 
@@ -36,6 +41,7 @@ const corsOptions: cors.CorsOptions = {
 
 app.use(helmet());
 app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 app.use(express.json());
 app.use(pinoHttp({ level: env.LOG_LEVEL }));
 

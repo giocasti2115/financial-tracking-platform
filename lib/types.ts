@@ -110,6 +110,32 @@ export interface AssetTransaction {
   created_at: string
 }
 
+export interface MicroExpense {
+  id: string
+  user_id: string
+  description: string
+  amount: number
+  category?: string | null
+  occurred_on: string
+  notes?: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface MicroExpenseCategorySummary {
+  category: string
+  total: number
+  count: number
+  percentage: number
+}
+
+export interface MicroExpenseSummary {
+  total: number
+  count: number
+  categories: MicroExpenseCategorySummary[]
+  daily_totals: { occurred_on: string; total: number }[]
+}
+
 export interface FinancialSummary {
   total_income: number
   total_expenses: number

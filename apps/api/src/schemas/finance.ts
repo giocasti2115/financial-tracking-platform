@@ -4,6 +4,10 @@ const currencyValue = z.number().finite().nonnegative();
 const paymentPeriodSchema = z.enum(['primera_quincena', 'segunda_quincena', 'monthly', 'custom']);
 const accountTypeSchema = z.enum(['cash', 'savings', 'checking', 'credit', 'investment']);
 const debtPaymentFrequencySchema = z.enum(['monthly', 'biweekly']);
+const dateStringSchema = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/)
+  .refine((value) => !Number.isNaN(Date.parse(value)), 'Fecha inválida');
 
 export const expenseInputSchema = z.object({
   description: z.string().min(1),
@@ -76,6 +80,21 @@ export const assetUpdateSchema = z.object({
   current_balance: currencyValue.optional()
 });
 
+export const microExpenseInputSchema = z.object({
+  description: z.string().trim().min(1),
+  amount: currencyValue.positive(),
+  category: z.string().trim().min(1).max(60).optional(),
+  occurred_on: dateStringSchema.optional(),
+  notes: z.string().max(400).optional()
+});
+
+export const monthFilterSchema = z.object({
+  month: z
+    .string()
+    .regex(/^\d{4}-(0[1-9]|1[0-2])$/, 'Mes inválido')
+    .optional()
+});
+
 export type ExpenseInput = z.infer<typeof expenseInputSchema>;
 export type ExpenseUpdateInput = z.infer<typeof expenseUpdateSchema>;
 export type ExpensePaymentInput = z.infer<typeof expensePaymentSchema>;
@@ -85,3 +104,5 @@ export type DebtPaymentInput = z.infer<typeof debtPaymentSchema>;
 export type DebtUpdateInput = z.infer<typeof debtUpdateSchema>;
 export type AssetInput = z.infer<typeof assetInputSchema>;
 export type AssetUpdateInput = z.infer<typeof assetUpdateSchema>;
+export type MicroExpenseInput = z.infer<typeof microExpenseInputSchema>;
+export type MonthFilterInput = z.infer<typeof monthFilterSchema>;

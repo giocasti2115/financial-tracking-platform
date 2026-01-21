@@ -9,9 +9,11 @@ export interface AuthContext {
   roles?: string[];
 }
 
-declare module 'express-serve-static-core' {
-  interface Request {
-    auth?: AuthContext;
+declare global {
+  namespace Express {
+    interface Request {
+      auth?: AuthContext;
+    }
   }
 }
 
