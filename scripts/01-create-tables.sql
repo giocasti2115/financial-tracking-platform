@@ -207,7 +207,6 @@ CREATE INDEX IF NOT EXISTS idx_expenses_user_payment ON expenses(user_id, paymen
 CREATE INDEX IF NOT EXISTS idx_expenses_is_paid ON expenses(is_paid);
 CREATE INDEX IF NOT EXISTS idx_expense_payments_expense ON expense_payments(expense_id, payment_date DESC);
 CREATE INDEX IF NOT EXISTS idx_micro_expenses_user_date ON micro_expenses(user_id, occurred_on DESC);
-CREATE INDEX IF NOT EXISTS idx_micro_expenses_user_month ON micro_expenses(user_id, date_trunc('month', occurred_on));
 CREATE INDEX IF NOT EXISTS idx_debts_user_status ON debts(user_id, status);
 CREATE INDEX IF NOT EXISTS idx_debt_payments_debt ON debt_payments(debt_id, payment_date DESC);
 CREATE INDEX IF NOT EXISTS idx_projections_user_period ON projections(user_id, period_start, period_end);
