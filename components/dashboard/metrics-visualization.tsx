@@ -1,6 +1,6 @@
 "use client"
 
-import { useId, useMemo } from "react"
+import { useId, useMemo, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import type { Asset, Debt, Expense, Income } from "@/lib/types"
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, Line } from "recharts"
@@ -39,15 +39,27 @@ const formatAxisValue = (value: number) => {
 }
 
 type InsightStatus = "positive" | "neutral" | "warning"
+type Timeframe = "12m" | "6m" | "3m" | "1m"
+
+const timeframeConfig: Record<Timeframe, { label: string; description: string; months: number }> = {
+  "12m": { label: "Último año", description: "último año", months: 12 },
+  "6m": { label: "Últimos 6 meses", description: "últimos 6 meses", months: 6 },
+  "3m": { label: "Últimos 3 meses", description: "últimos 3 meses", months: 3 },
+  "1m": { label: "Último mes", description: "último mes", months: 1 },
+}
+
+const timeframeOrder: Timeframe[] = ["12m", "6m", "3m", "1m"]
 
 export function MetricsVisualization({ incomes, expenses, debts, assets }: MetricsVisualizationProps) {
   const incomeGradientId = useId()
   const expenseGradientId = useId()
+  const [timeframe, setTimeframe] = useState<Timeframe>("6m")
 
   const { monthlySeries, stats, insights } = useMemo(() => {
     const now = new Date()
-    const months = Array.from({ length: 6 }).map((_, index) => {
-      const target = new Date(now.getFullYear(), now.getMonth() - (5 - index), 1)
+    const monthsToShow = timeframeConfig[timeframe].months
+    const months = Array.from({ length: monthsToShow }).map((_, index) => {
+      const target = new Date(now.getFullYear(), now.getMonth() - (monthsToShow - 1 - index), 1)
       return target
     })
 
@@ -136,13 +148,36 @@ export function MetricsVisualization({ incomes, expenses, debts, assets }: Metri
     ]
 
     return { monthlySeries, stats, insights }
-  }, [assets, debts, expenses, incomes])
+  }, [assets, debts, expenses, incomes, timeframe])
 
   return (
     <Card className="rounded-2xl border border-border/60 bg-white/70 backdrop-blur">
-      <CardHeader>
-        <CardTitle>Métricas en Tiempo Real</CardTitle>
-        <CardDescription>Seguimiento de los últimos 6 meses</CardDescription>
+      <CardHeader className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <CardTitle>Métricas en Tiempo Real</CardTitle>
+          <CardDescription>Seguimiento del {timeframeConfig[timeframe].description}</CardDescription>
+        </div>
+        <div className="flex flex-wrap items-center gap-1 rounded-full border border-border/60 bg-muted/60 p-1 text-xs font-semibold">
+          {timeframeOrder.map((option) => {
+            const isActive = option === timeframe
+            return (
+              <button
+                key={option}
+                type="button"
+                onClick={() => setTimeframe(option)}
+                className={cn(
+                  "rounded-full px-3 py-1 transition-colors",
+                  isActive
+                    ? "bg-background text-[var(--brand-navy-900)] shadow"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+                aria-pressed={isActive}
+              >
+                {timeframeConfig[option].label}
+              </button>
+            )
+          })}
+        </div>
       </CardHeader>
       <CardContent>
         <div className="grid gap-6 xl:grid-cols-[minmax(0,2.2fr)_minmax(0,1fr)]">

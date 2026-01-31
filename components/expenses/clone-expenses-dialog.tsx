@@ -13,9 +13,10 @@ import {
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Badge } from "@/components/ui/badge"
 import type { Expense } from "@/lib/types"
 import { getFinancialYears } from "@/lib/utils"
-import { Copy } from "lucide-react"
+import { Copy, X } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 
 interface CloneExpensesDialogProps {
@@ -27,13 +28,14 @@ export function CloneExpensesDialog({ expenses, onClone }: CloneExpensesDialogPr
   const [open, setOpen] = useState(false)
   const [sourceMonth, setSourceMonth] = useState<string | undefined>(undefined)
   const [sourceYear, setSourceYear] = useState<string | undefined>(undefined)
-  const [targetMonth, setTargetMonth] = useState<string | undefined>(undefined)
-  const [targetYear, setTargetYear] = useState<string | undefined>(undefined)
+  const [pendingTargetMonth, setPendingTargetMonth] = useState<string | undefined>(undefined)
+  const [pendingTargetYear, setPendingTargetYear] = useState<string | undefined>(undefined)
   const [isCloning, setIsCloning] = useState(false)
   const [sourceSemester, setSourceSemester] = useState<"all" | "1" | "2">("all")
   const [sourcePeriod, setSourcePeriod] = useState<"all" | Expense["payment_period"]>("all")
   const [targetSemester, setTargetSemester] = useState<"auto" | "1" | "2">("auto")
   const [targetPeriod, setTargetPeriod] = useState<"keep" | Expense["payment_period"]>("keep")
+  const [targetPeriods, setTargetPeriods] = useState<Array<{ month: string; year: string }>>([])
   const { toast } = useToast()
 
   const handleSourceSemesterChange = (value: string) => setSourceSemester(value as "all" | "1" | "2")
@@ -64,29 +66,50 @@ export function CloneExpensesDialog({ expenses, onClone }: CloneExpensesDialogPr
     return `${year}-${month}`
   }
 
-  const handleClone = async () => {
-    if (!sourceMonth || !sourceYear || !targetMonth || !targetYear) {
+  const addTargetPeriod = () => {
+    if (!pendingTargetMonth || !pendingTargetYear) {
       toast({
         variant: "destructive",
-        title: "Datos incompletos",
-        description: "Selecciona primero el mes y año origen/destino.",
+        title: "Periodo incompleto",
+        description: "Selecciona mes y año antes de agregar un destino.",
       })
       return
     }
 
-    if (sourceMonth === targetMonth && sourceYear === targetYear) {
+    const duplicate = targetPeriods.some(
+      (period) => period.month === pendingTargetMonth && period.year === pendingTargetYear,
+    )
+
+    if (duplicate) {
       toast({
         variant: "destructive",
-        title: "Periodo inválido",
-        description: "El destino debe ser distinto al origen.",
+        title: "Periodo repetido",
+        description: "Ese mes destino ya fue agregado.",
+      })
+      return
+    }
+
+    setTargetPeriods((prev) => [...prev, { month: pendingTargetMonth, year: pendingTargetYear }])
+    setPendingTargetMonth(undefined)
+    setPendingTargetYear(undefined)
+  }
+
+  const removeTargetPeriod = (period: { month: string; year: string }) => {
+    setTargetPeriods((prev) => prev.filter((item) => item.month !== period.month || item.year !== period.year))
+  }
+
+  const handleClone = async () => {
+    if (!sourceMonth || !sourceYear || targetPeriods.length === 0) {
+      toast({
+        variant: "destructive",
+        title: "Datos incompletos",
+        description: "Selecciona el mes y año origen y agrega al menos un destino.",
       })
       return
     }
 
     const sourceMonthNumber = Number.parseInt(sourceMonth)
     const sourceYearNumber = Number.parseInt(sourceYear)
-    const targetMonthNumber = Number.parseInt(targetMonth)
-    const targetYearNumber = Number.parseInt(targetYear)
 
     const sourceExpenses = expenses.filter((expense) => {
       const [year, month] = expense.payment_date.split("-").map((value) => Number(value))
@@ -105,43 +128,54 @@ export function CloneExpensesDialog({ expenses, onClone }: CloneExpensesDialogPr
       return
     }
 
-    const targetKeys = new Set(
-      expenses
-        .filter((expense) => getMonthYearKey(expense) === `${targetYearNumber}-${String(targetMonthNumber).padStart(2, "0")}`)
-        .map((expense) => `${expense.description.toLowerCase()}-${expense.payment_period}-${expense.debt_id ?? "none"}`),
-    )
+    const existingKeysByMonth = new Map<string, Set<string>>()
+    expenses.forEach((expense) => {
+      const monthKey = getMonthYearKey(expense)
+      const bucket = existingKeysByMonth.get(monthKey) || new Set<string>()
+      bucket.add(`${expense.description.toLowerCase()}-${expense.payment_period}-${expense.debt_id ?? "none"}`)
+      existingKeysByMonth.set(monthKey, bucket)
+    })
 
     let skipped = 0
-    const clonedExpenses = sourceExpenses.reduce<Omit<Expense, "id" | "created_at" | "updated_at">[]>((acc, expense) => {
-      const resolvedPeriod = targetPeriod === "keep" ? expense.payment_period : targetPeriod
-      const cloneKey = `${expense.description.toLowerCase()}-${resolvedPeriod}-${expense.debt_id ?? "none"}`
-      if (targetKeys.has(cloneKey)) {
-        skipped += 1
-        return acc
-      }
+    const clonedExpenses: Array<Omit<Expense, "id" | "created_at" | "updated_at">> = []
 
-      targetKeys.add(cloneKey)
-      const resolvedSemester =
-        targetSemester === "auto" ? (targetMonthNumber <= 6 ? 1 : 2) : Number(targetSemester)
-      const day = resolvedPeriod === "primera_quincena" ? "15" : "30"
+    targetPeriods.forEach((period) => {
+      const targetMonthNumber = Number.parseInt(period.month)
+      const targetYearNumber = Number.parseInt(period.year)
+      const targetKey = `${targetYearNumber}-${String(targetMonthNumber).padStart(2, "0")}`
+      const keyBucket = new Set(existingKeysByMonth.get(targetKey) ?? [])
 
-      acc.push({
-        user_id: expense.user_id,
-        category_id: expense.category_id,
-        description: expense.description,
-        amount: expense.amount,
-        payment_date: `${targetYearNumber}-${String(targetMonthNumber).padStart(2, "0")}-${day}`,
-        payment_period: resolvedPeriod,
-        semester: resolvedSemester,
-        year: targetYearNumber,
-        notes: expense.notes ?? undefined,
-        is_paid: false,
-        amount_paid: 0,
-        debt_id: expense.debt_id,
+      sourceExpenses.forEach((expense) => {
+        const resolvedPeriod = targetPeriod === "keep" ? expense.payment_period : targetPeriod
+        const cloneKey = `${expense.description.toLowerCase()}-${resolvedPeriod}-${expense.debt_id ?? "none"}`
+        if (keyBucket.has(cloneKey)) {
+          skipped += 1
+          return
+        }
+
+        keyBucket.add(cloneKey)
+        existingKeysByMonth.set(targetKey, keyBucket)
+
+        const resolvedSemester =
+          targetSemester === "auto" ? (targetMonthNumber <= 6 ? 1 : 2) : Number(targetSemester)
+        const day = resolvedPeriod === "primera_quincena" ? "15" : "30"
+
+        clonedExpenses.push({
+          user_id: expense.user_id,
+          category_id: expense.category_id,
+          description: expense.description,
+          amount: expense.amount,
+          payment_date: `${targetYearNumber}-${String(targetMonthNumber).padStart(2, "0")}-${day}`,
+          payment_period: resolvedPeriod,
+          semester: resolvedSemester,
+          year: targetYearNumber,
+          notes: expense.notes ?? undefined,
+          is_paid: false,
+          amount_paid: 0,
+          debt_id: expense.debt_id,
+        })
       })
-
-      return acc
-    }, [])
+    })
 
     if (clonedExpenses.length === 0) {
       toast({
@@ -163,8 +197,9 @@ export function CloneExpensesDialog({ expenses, onClone }: CloneExpensesDialogPr
       setOpen(false)
       setSourceMonth(undefined)
       setSourceYear(undefined)
-      setTargetMonth(undefined)
-      setTargetYear(undefined)
+      setPendingTargetMonth(undefined)
+      setPendingTargetYear(undefined)
+      setTargetPeriods([])
     } catch (error) {
       const message = error instanceof Error ? error.message : "No pudimos clonar los gastos."
       toast({
@@ -263,10 +298,10 @@ export function CloneExpensesDialog({ expenses, onClone }: CloneExpensesDialogPr
 
           <div className="space-y-4">
             <h4 className="font-medium text-sm">Mes Destino</h4>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-[1fr,1fr,auto]">
               <div className="grid gap-2">
                 <Label htmlFor="target-month">Mes</Label>
-                <Select value={targetMonth ?? undefined} onValueChange={setTargetMonth}>
+                <Select value={pendingTargetMonth ?? undefined} onValueChange={setPendingTargetMonth}>
                   <SelectTrigger id="target-month">
                     <SelectValue placeholder="Seleccionar" />
                   </SelectTrigger>
@@ -282,7 +317,7 @@ export function CloneExpensesDialog({ expenses, onClone }: CloneExpensesDialogPr
 
               <div className="grid gap-2">
                 <Label htmlFor="target-year">Año</Label>
-                <Select value={targetYear ?? undefined} onValueChange={setTargetYear}>
+                <Select value={pendingTargetYear ?? undefined} onValueChange={setPendingTargetYear}>
                   <SelectTrigger id="target-year">
                     <SelectValue placeholder="Seleccionar" />
                   </SelectTrigger>
@@ -295,6 +330,35 @@ export function CloneExpensesDialog({ expenses, onClone }: CloneExpensesDialogPr
                   </SelectContent>
                 </Select>
               </div>
+
+              <div className="flex items-end">
+                <Button type="button" variant="secondary" className="w-full" onClick={addTargetPeriod}>
+                  Agregar
+                </Button>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              {targetPeriods.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Aún no has agregado meses destino.</p>
+              ) : (
+                targetPeriods.map((period) => {
+                  const monthLabel = months.find((month) => month.value === period.month)?.label ?? period.month
+                  return (
+                    <Badge key={`${period.year}-${period.month}`} variant="secondary" className="gap-2">
+                      {monthLabel} {period.year}
+                      <button
+                        type="button"
+                        className="rounded-full p-0.5 hover:bg-muted"
+                        onClick={() => removeTargetPeriod(period)}
+                        aria-label="Quitar periodo"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </Badge>
+                  )
+                })
+              )}
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">

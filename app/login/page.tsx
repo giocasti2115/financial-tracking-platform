@@ -12,12 +12,24 @@ import { useAuth } from "@/components/auth-provider"
 import { cn } from "@/lib/utils"
 import { AureaMark } from "@/components/ui/aurea-mark"
 
+const getInitialLoginState = () => ({
+  email: "",
+  password: "",
+})
+
+const getInitialSignupState = () => ({
+  name: "",
+  email: "",
+  password: "",
+  confirmPassword: "",
+})
+
 export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [formData, setFormData] = useState({ email: "", password: "" })
+  const [formData, setFormData] = useState(getInitialLoginState)
   const [mode, setMode] = useState<"login" | "signup">("login")
-  const [signupData, setSignupData] = useState({ name: "", email: "", password: "", confirmPassword: "" })
+  const [signupData, setSignupData] = useState(getInitialSignupState)
   const [signupLoading, setSignupLoading] = useState(false)
   const router = useRouter()
   const { setUser } = useAuth()
@@ -27,8 +39,18 @@ export default function LoginPage() {
     "radial-gradient(circle at 18% 22%, rgba(247,210,140,0.35), transparent 42%), radial-gradient(circle at 82% 0%, rgba(255,255,255,0.12), transparent 50%), linear-gradient(135deg, #030915 0%, #07162c 55%, #0f2747 78%, #f2c77a 100%)"
 
   const handleModeChange = (nextMode: "login" | "signup") => {
+    if (nextMode === mode) return
+
+    if (mode === "signup") {
+      setSignupData(getInitialSignupState())
+    } else {
+      setFormData(getInitialLoginState())
+    }
+
     setMode(nextMode)
     setError(null)
+    setLoading(false)
+    setSignupLoading(false)
   }
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
