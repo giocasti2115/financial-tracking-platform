@@ -33,12 +33,29 @@ const safeFetch = async (input: RequestInfo | URL, init?: RequestInit) => {
   }
 }
 
-const handleResponse = async <T>(response: Response): Promise<T> => {
-  if (!response.ok) {
-    const message = (await response.json().catch(() => ({}))).message || "Error autenticando"
-    throw new Error(message)
+type ErrorIssue = {
+  path?: (string | number)[]
+  message: string
+}
+
+const translateValidationMessage = (message: string) => {
+  if (/at least 8 character/i.test(message)) {
+    return "La contraseña debe tener al menos 8 caracteres."
   }
-  return response.json() as Promise<T>
+  return message
+}
+
+const handleResponse = async <T>(response: Response): Promise<T> => {
+  const payload = (await response.json().catch(() => null)) as (T & { message?: string; issues?: ErrorIssue[] }) | null
+
+  if (!response.ok) {
+    const issueMessage = payload?.issues?.[0]?.message
+    const baseMessage = payload?.message || "Error autenticando"
+    const finalMessage = issueMessage ? translateValidationMessage(issueMessage) : baseMessage
+    throw new Error(finalMessage)
+  }
+
+  return (payload as T) ?? ({} as T)
 }
 
 export const currentUser = () => storage.get<AuthUser>(STORAGE_KEYS.USER)

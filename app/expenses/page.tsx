@@ -288,7 +288,9 @@ export default function ExpensesPage() {
             <AlertTitle>Pagos Vencidos</AlertTitle>
             <AlertDescription>
               Tienes {overdueExpenses.length} pago(s) vencido(s) por un total de $
-              {overdueExpenses.reduce((sum, e) => sum + e.amount, 0).toLocaleString("es-CO")}
+              {overdueExpenses
+                .reduce((sum, e) => sum + Math.max(e.amount - (e.amount_paid ?? 0), 0), 0)
+                .toLocaleString("es-CO")}
             </AlertDescription>
           </Alert>
         )}
