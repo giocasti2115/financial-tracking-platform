@@ -22,6 +22,17 @@ interface RegisterPayload {
   password: string
 }
 
+interface ForgotPasswordResponse {
+  temporaryPassword: string
+  expiresAt: string
+}
+
+interface ResetPasswordPayload {
+  email: string
+  temporaryPassword: string
+  newPassword: string
+}
+
 const safeFetch = async (input: RequestInfo | URL, init?: RequestInit) => {
   try {
     return await fetch(input, init)
@@ -138,5 +149,25 @@ export const auth = {
 
   isAuthenticated(): boolean {
     return Boolean(this.getAccessToken())
+  },
+
+  async requestPasswordReset(email: string): Promise<ForgotPasswordResponse> {
+    const response = await safeFetch(`${API_URL}/auth/forgot-password`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
+    })
+
+    return handleResponse<ForgotPasswordResponse>(response)
+  },
+
+  async resetPassword(payload: ResetPasswordPayload): Promise<void> {
+    const response = await safeFetch(`${API_URL}/auth/reset-password`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    })
+
+    await handleResponse<{ message: string }>(response)
   },
 }

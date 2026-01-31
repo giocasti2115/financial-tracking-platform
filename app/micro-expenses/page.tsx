@@ -14,11 +14,12 @@ import { MicroExpenseList } from "@/components/micro-expenses/micro-expense-list
 import { MicroExpenseSummary } from "@/components/micro-expenses/micro-expense-summary"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import { Loader2 } from "lucide-react"
+import { Info, Loader2 } from "lucide-react"
 
 import { apiClient, type NewMicroExpensePayload } from "@/lib/api-client"
 import type { MicroExpense, MicroExpenseSummary as SummaryType } from "@/lib/types"
 import { useToast } from "@/hooks/use-toast"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 
 const currentMonthValue = format(new Date(), "yyyy-MM")
 
@@ -134,7 +135,21 @@ export default function MicroExpensesPage() {
       <PageShell className="space-y-8">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div className="space-y-2">
-            <h1 className="text-3xl font-bold tracking-tight">Gastos Hormiga</h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-3xl font-bold tracking-tight">Gastos Hormiga</h1>
+              <Tooltip>
+                <TooltipTrigger
+                  type="button"
+                  className="text-muted-foreground transition-colors hover:text-foreground"
+                  aria-label="¿Qué es este módulo?"
+                >
+                  <Info className="h-4 w-4" />
+                </TooltipTrigger>
+                <TooltipContent className="max-w-xs">
+                  Registra los pequeños gastos diarios y analiza su impacto mensual en tu liquidez.
+                </TooltipContent>
+              </Tooltip>
+            </div>
             <p className="text-muted-foreground">
               Registra consumos diarios pequeños y visualiza el impacto mensual de tus antojos.
             </p>
@@ -150,30 +165,33 @@ export default function MicroExpensesPage() {
           </Card>
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-[3fr,2fr]">
-          <MicroExpenseSummary summary={summary} monthLabel={monthLabel} isLoading={summaryLoading || summaryFetching} />
-          <Card>
-            <CardHeader>
-              <CardTitle>Registrar gasto hormiga</CardTitle>
-              <CardDescription>Incluye cada pequeño gasto para mantener el control diario.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <MicroExpenseForm
-                onSubmit={handleCreateExpense}
-                isSubmitting={createExpenseMutation.isPending}
-                defaultDate={defaultDate}
-                disabled={expensesPending && !expenses.length}
-              />
-            </CardContent>
-          </Card>
-        </div>
+        <div className="grid gap-6 items-start lg:grid-cols-[2fr,3fr]">
+          <div className="space-y-6">
+            <MicroExpenseSummary summary={summary} monthLabel={monthLabel} isLoading={summaryLoading || summaryFetching} />
+            <Card>
+              <CardHeader>
+                <CardTitle>Registrar gasto hormiga</CardTitle>
+                <CardDescription>Incluye cada pequeño gasto para mantener el control diario.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <MicroExpenseForm
+                  onSubmit={handleCreateExpense}
+                  isSubmitting={createExpenseMutation.isPending}
+                  defaultDate={defaultDate}
+                  disabled={expensesPending && !expenses.length}
+                />
+              </CardContent>
+            </Card>
+          </div>
 
-        <MicroExpenseList
-          expenses={expenses}
-          onDelete={handleDeleteExpense}
-          deletingId={deletingId}
-          isDisabled={deleteExpenseMutation.isPending || expensesFetching}
-        />
+          <MicroExpenseList
+            expenses={expenses}
+            onDelete={handleDeleteExpense}
+            deletingId={deletingId}
+            isDisabled={deleteExpenseMutation.isPending || expensesFetching}
+            className="lg:h-[640px]"
+          />
+        </div>
       </PageShell>
     </DashboardLayout>
   )

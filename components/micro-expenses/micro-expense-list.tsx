@@ -14,6 +14,7 @@ interface MicroExpenseListProps {
   onDelete: (expense: MicroExpense) => Promise<void>
   deletingId?: string | null
   isDisabled?: boolean
+  className?: string
 }
 
 const currencyFormatter = new Intl.NumberFormat("es-CO", {
@@ -28,7 +29,7 @@ const dateFormatter = new Intl.DateTimeFormat("es-CO", {
   month: "long",
 })
 
-export function MicroExpenseList({ expenses, onDelete, deletingId, isDisabled }: MicroExpenseListProps) {
+export function MicroExpenseList({ expenses, onDelete, deletingId, isDisabled, className }: MicroExpenseListProps) {
   const grouped = useMemo(() => {
     const groups = new Map<string, MicroExpense[]>()
     expenses.forEach((expense) => {
@@ -53,12 +54,12 @@ export function MicroExpenseList({ expenses, onDelete, deletingId, isDisabled }:
   }
 
   return (
-    <Card className="h-full">
+    <Card className={cn("h-full", className)}>
       <CardHeader>
         <CardTitle>Historial del mes</CardTitle>
       </CardHeader>
       <CardContent className="p-0">
-        <ScrollArea className="h-[540px]">
+        <ScrollArea className="h-[480px] sm:h-[520px] lg:h-[600px] xl:h-[640px]">
           <div className="divide-y">
             {grouped.map(([date, items]) => (
               <Fragment key={date}>

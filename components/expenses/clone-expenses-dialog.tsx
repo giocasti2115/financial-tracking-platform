@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -37,6 +37,15 @@ export function CloneExpensesDialog({ expenses, onClone }: CloneExpensesDialogPr
   const [targetPeriod, setTargetPeriod] = useState<"keep" | Expense["payment_period"]>("keep")
   const [targetPeriods, setTargetPeriods] = useState<Array<{ month: string; year: string }>>([])
   const { toast } = useToast()
+  const years = getFinancialYears()
+  const maxAvailableYear = years[years.length - 1]
+  const isTargetSelectionReady = Boolean(pendingTargetMonth && pendingTargetYear)
+
+  useEffect(() => {
+    if (open && !pendingTargetYear && sourceYear) {
+      setPendingTargetYear(sourceYear)
+    }
+  }, [open, pendingTargetYear, sourceYear])
 
   const handleSourceSemesterChange = (value: string) => setSourceSemester(value as "all" | "1" | "2")
   const handleSourcePeriodChange = (value: string) =>
@@ -45,7 +54,6 @@ export function CloneExpensesDialog({ expenses, onClone }: CloneExpensesDialogPr
   const handleTargetPeriodChange = (value: string) =>
     setTargetPeriod(value as "keep" | Expense["payment_period"])
 
-  const years = getFinancialYears()
   const months = [
     { value: "1", label: "Enero" },
     { value: "2", label: "Febrero" },
@@ -67,7 +75,10 @@ export function CloneExpensesDialog({ expenses, onClone }: CloneExpensesDialogPr
   }
 
   const addTargetPeriod = () => {
-    if (!pendingTargetMonth || !pendingTargetYear) {
+    const targetMonthValue = pendingTargetMonth
+    const targetYearValue = pendingTargetYear
+
+    if (!targetMonthValue || !targetYearValue) {
       toast({
         variant: "destructive",
         title: "Periodo incompleto",
@@ -77,7 +88,7 @@ export function CloneExpensesDialog({ expenses, onClone }: CloneExpensesDialogPr
     }
 
     const duplicate = targetPeriods.some(
-      (period) => period.month === pendingTargetMonth && period.year === pendingTargetYear,
+      (period) => period.month === targetMonthValue && period.year === targetYearValue,
     )
 
     if (duplicate) {
@@ -89,9 +100,21 @@ export function CloneExpensesDialog({ expenses, onClone }: CloneExpensesDialogPr
       return
     }
 
-    setTargetPeriods((prev) => [...prev, { month: pendingTargetMonth, year: pendingTargetYear }])
-    setPendingTargetMonth(undefined)
-    setPendingTargetYear(undefined)
+    setTargetPeriods((prev) => [...prev, { month: targetMonthValue, year: targetYearValue }])
+
+    const monthNumber = Number.parseInt(targetMonthValue, 10)
+    const yearNumber = Number.parseInt(targetYearValue, 10)
+    const nextMonthNumber = monthNumber === 12 ? 1 : monthNumber + 1
+    const nextYearNumber = monthNumber === 12 ? yearNumber + 1 : yearNumber
+
+    if (nextYearNumber > maxAvailableYear) {
+      setPendingTargetMonth(undefined)
+      setPendingTargetYear(maxAvailableYear.toString())
+      return
+    }
+
+    setPendingTargetMonth(nextMonthNumber.toString())
+    setPendingTargetYear(nextYearNumber.toString())
   }
 
   const removeTargetPeriod = (period: { month: string; year: string }) => {
@@ -332,7 +355,13 @@ export function CloneExpensesDialog({ expenses, onClone }: CloneExpensesDialogPr
               </div>
 
               <div className="flex items-end">
-                <Button type="button" variant="secondary" className="w-full" onClick={addTargetPeriod}>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className="w-full"
+                  onClick={addTargetPeriod}
+                  disabled={!isTargetSelectionReady}
+                >
                   Agregar
                 </Button>
               </div>

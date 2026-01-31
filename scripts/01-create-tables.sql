@@ -7,6 +7,8 @@ CREATE TABLE IF NOT EXISTS users (
   email TEXT UNIQUE NOT NULL,
   full_name TEXT,
   password_hash TEXT NOT NULL,
+  temp_password_hash TEXT,
+  temp_password_expires_at TIMESTAMP WITH TIME ZONE,
   status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'disabled')),
   timezone TEXT DEFAULT 'UTC',
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),

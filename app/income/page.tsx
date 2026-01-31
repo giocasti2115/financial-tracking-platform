@@ -7,7 +7,7 @@ import { useAuth } from "@/components/auth-provider"
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout"
 import { PageShell } from "@/components/dashboard/page-shell"
 import type { Income } from "@/lib/types"
-import { Loader2, Plus, Trash2, DollarSign } from "lucide-react"
+import { DollarSign, Info, Loader2, Plus, Trash2 } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import {
@@ -25,6 +25,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { apiClient } from "@/lib/api-client"
 import { clampFinancialYear, getFinancialYears } from "@/lib/utils"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 
 export default function IncomePage() {
   const { user, loading: authLoading } = useAuth()
@@ -152,7 +153,21 @@ export default function IncomePage() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="space-y-1">
-            <h1 className="text-3xl font-bold tracking-tight">Gestión de Ingresos</h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-3xl font-bold tracking-tight">Gestión de Ingresos</h1>
+              <Tooltip>
+                <TooltipTrigger
+                  type="button"
+                  className="text-muted-foreground transition-colors hover:text-foreground"
+                  aria-label="Descripción del módulo de ingresos"
+                >
+                  <Info className="h-4 w-4" />
+                </TooltipTrigger>
+                <TooltipContent className="max-w-xs">
+                  Suma tus ingresos por quincena y mantén claro cuánto entra en cada periodo.
+                </TooltipContent>
+              </Tooltip>
+            </div>
             <p className="text-muted-foreground">Registra tus ingresos por quincena</p>
           </div>
 

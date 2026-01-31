@@ -9,9 +9,10 @@ import { AddDebtDialog } from "@/components/debts/add-debt-dialog"
 import { DebtCard } from "@/components/debts/debt-card"
 import { calculations } from "@/lib/calculations"
 import type { Debt } from "@/lib/types"
-import { Loader2 } from "lucide-react"
+import { Info, Loader2 } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { apiClient } from "@/lib/api-client"
 import type { UpdateDebtPayload } from "@/lib/api-client"
@@ -124,7 +125,21 @@ export default function DebtsPage() {
       <PageShell className="space-y-6">
         <div className="flex items-center justify-between">
           <div className="space-y-1">
-            <h1 className="text-3xl font-bold tracking-tight">Gestión de Deudas</h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-3xl font-bold tracking-tight">Gestión de Deudas</h1>
+              <Tooltip>
+                <TooltipTrigger
+                  type="button"
+                  className="text-muted-foreground transition-colors hover:text-foreground"
+                  aria-label="Descripción del módulo de deudas"
+                >
+                  <Info className="h-4 w-4" />
+                </TooltipTrigger>
+                <TooltipContent className="max-w-xs">
+                  Registra tus pasivos, programa pagos y controla el avance hacia saldo cero.
+                </TooltipContent>
+              </Tooltip>
+            </div>
             <p className="text-muted-foreground">Controla tus pasivos y calcula tu patrimonio</p>
           </div>
           <AddDebtDialog onSubmit={handleAddDebt} />

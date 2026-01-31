@@ -9,7 +9,7 @@ import { useAuth } from "@/components/auth-provider"
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout"
 import { PageShell } from "@/components/dashboard/page-shell"
 import type { Asset } from "@/lib/types"
-import { Loader2, Plus, Trash2 } from "lucide-react"
+import { Info, Loader2, Plus, Trash2 } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import {
@@ -26,6 +26,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { apiClient } from "@/lib/api-client"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 
 export default function AssetsPage() {
   const { user, loading: authLoading } = useAuth()
@@ -136,7 +137,21 @@ export default function AssetsPage() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="space-y-1">
-            <h1 className="text-3xl font-bold tracking-tight">Gestión de Activos</h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-3xl font-bold tracking-tight">Gestión de Activos</h1>
+              <Tooltip>
+                <TooltipTrigger
+                  type="button"
+                  className="text-muted-foreground transition-colors hover:text-foreground"
+                  aria-label="Descripción del módulo de activos"
+                >
+                  <Info className="h-4 w-4" />
+                </TooltipTrigger>
+                <TooltipContent className="max-w-xs">
+                  Lleva control de tus cuentas de ahorro, inversiones y actualiza saldos al instante.
+                </TooltipContent>
+              </Tooltip>
+            </div>
             <p className="text-muted-foreground">Administra tus cuentas de ahorro e inversiones</p>
           </div>
 

@@ -10,7 +10,7 @@ import { MonthlyProjectionChart } from "@/components/projections/monthly-project
 import { ExpenseReport } from "@/components/projections/expense-report"
 import { projections } from "@/lib/projections"
 import type { Debt, Expense, Income } from "@/lib/types"
-import { Loader2, Calendar, TrendingUp } from "lucide-react"
+import { Calendar, Info, Loader2, TrendingUp } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -18,6 +18,7 @@ import { Label } from "@/components/ui/label"
 import { useQuery } from "@tanstack/react-query"
 import { apiClient } from "@/lib/api-client"
 import { clampFinancialYear, getFinancialYears } from "@/lib/utils"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 
 export default function ProjectionsPage() {
   const { user, loading: authLoading } = useAuth()
@@ -84,7 +85,21 @@ export default function ProjectionsPage() {
       <PageShell className="space-y-6">
         {/* Header */}
         <div className="space-y-1">
-          <h1 className="text-3xl font-bold tracking-tight">Proyecciones y Reportes</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-3xl font-bold tracking-tight">Proyecciones y Reportes</h1>
+            <Tooltip>
+              <TooltipTrigger
+                type="button"
+                className="text-muted-foreground transition-colors hover:text-foreground"
+                aria-label="Descripción del módulo de proyecciones"
+              >
+                <Info className="h-4 w-4" />
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs">
+                Simula tus pagos futuros, analiza el comportamiento mensual y detecta tendencias de gasto.
+              </TooltipContent>
+            </Tooltip>
+          </div>
           <p className="text-muted-foreground">Visualiza proyecciones de pago y análisis financiero</p>
         </div>
 

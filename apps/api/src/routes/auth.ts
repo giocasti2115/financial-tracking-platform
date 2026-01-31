@@ -1,5 +1,11 @@
 import { Router } from 'express';
-import { loginSchema, refreshSchema, registerSchema } from '../schemas/auth.js';
+import {
+  forgotPasswordSchema,
+  loginSchema,
+  refreshSchema,
+  registerSchema,
+  resetPasswordSchema
+} from '../schemas/auth.js';
 import { AuthService } from '../services/auth-service.js';
 import { asyncHandler } from '../utils/async-handler.js';
 
@@ -35,5 +41,27 @@ authRouter.post(
     const body = refreshSchema.parse(req.body);
     const tokens = await AuthService.refresh(body.refreshToken);
     res.json(tokens);
+  })
+);
+
+authRouter.post(
+  '/forgot-password',
+  asyncHandler(async (req, res) => {
+    const body = forgotPasswordSchema.parse(req.body);
+    const payload = await AuthService.requestPasswordReset(body.email);
+    res.json(payload);
+  })
+);
+
+authRouter.post(
+  '/reset-password',
+  asyncHandler(async (req, res) => {
+    const body = resetPasswordSchema.parse(req.body);
+    await AuthService.resetPassword({
+      email: body.email,
+      temporaryPassword: body.temporaryPassword,
+      newPassword: body.newPassword
+    });
+    res.json({ message: 'Contraseña actualizada correctamente.' });
   })
 );

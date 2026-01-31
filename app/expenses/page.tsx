@@ -9,11 +9,11 @@ import { AddExpenseDialog } from "@/components/expenses/add-expense-dialog"
 import { ExpenseTable } from "@/components/expenses/expense-table"
 import { ExpenseFilters } from "@/components/expenses/expense-filters"
 import type { Asset, Debt, Expense } from "@/lib/types"
-import { Loader2 } from "lucide-react"
+import { AlertCircle, Info, Loader2 } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { CloneExpensesDialog } from "@/components/expenses/clone-expenses-dialog"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { AlertCircle } from "lucide-react"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { apiClient } from "@/lib/api-client"
 import { clampFinancialYear } from "@/lib/utils"
@@ -271,7 +271,21 @@ export default function ExpensesPage() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="space-y-1">
-            <h1 className="text-3xl font-bold tracking-tight">Gestión de Gastos</h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-3xl font-bold tracking-tight">Gestión de Gastos</h1>
+              <Tooltip>
+                <TooltipTrigger
+                  type="button"
+                  className="text-muted-foreground transition-colors hover:text-foreground"
+                  aria-label="Descripción del módulo de gastos"
+                >
+                  <Info className="h-4 w-4" />
+                </TooltipTrigger>
+                <TooltipContent className="max-w-xs">
+                  Controla tus gastos quincenales, duplica meses y registra pagos a tiempo.
+                </TooltipContent>
+              </Tooltip>
+            </div>
             <p className="text-muted-foreground">Registra y controla tus gastos quincenales</p>
           </div>
           <div className="flex gap-2">

@@ -39,22 +39,22 @@ export function ExpenseFilters({ filters, onFilterChange, onReset, isDirty }: Ex
   ]
 
   return (
-    <Card>
-      <CardContent className="pt-4 space-y-3">
+    <Card className="border-border/60 bg-white/90 shadow-sm">
+      <CardContent className="px-4 py-4 space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="text-sm text-muted-foreground">Filtra por periodo, quincena y búsqueda.</p>
+          <p className="text-sm text-muted-foreground">Filtra por año, quincena o búsqueda sin recargar la tabla.</p>
           <Button type="button" variant="ghost" size="sm" onClick={onReset} disabled={!isDirty}>
             Limpiar filtros
           </Button>
         </div>
 
-        <div className="grid gap-3 md:grid-cols-3 lg:grid-cols-5">
-          <div className="space-y-1.5">
-            <Label htmlFor="year-filter" className="text-xs uppercase tracking-wide text-muted-foreground">
+        <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-[repeat(auto-fit,minmax(170px,1fr))]">
+          <div className="space-y-1">
+            <Label htmlFor="year-filter" className="text-[0.7rem] uppercase tracking-[0.2em] text-muted-foreground">
               Año
             </Label>
             <Select value={filters.year} onValueChange={(value) => onFilterChange({ ...filters, year: value })}>
-              <SelectTrigger id="year-filter">
+              <SelectTrigger id="year-filter" className="h-9">
                 <SelectValue placeholder="Todos" />
               </SelectTrigger>
               <SelectContent>
@@ -68,12 +68,12 @@ export function ExpenseFilters({ filters, onFilterChange, onReset, isDirty }: Ex
             </Select>
           </div>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="semester-filter" className="text-xs uppercase tracking-wide text-muted-foreground">
+          <div className="space-y-1">
+            <Label htmlFor="semester-filter" className="text-[0.7rem] uppercase tracking-[0.2em] text-muted-foreground">
               Semestre
             </Label>
             <Select value={filters.semester} onValueChange={(value) => onFilterChange({ ...filters, semester: value })}>
-              <SelectTrigger id="semester-filter">
+              <SelectTrigger id="semester-filter" className="h-9">
                 <SelectValue placeholder="Todos" />
               </SelectTrigger>
               <SelectContent>
@@ -84,12 +84,12 @@ export function ExpenseFilters({ filters, onFilterChange, onReset, isDirty }: Ex
             </Select>
           </div>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="month-filter" className="text-xs uppercase tracking-wide text-muted-foreground">
+          <div className="space-y-1">
+            <Label htmlFor="month-filter" className="text-[0.7rem] uppercase tracking-[0.2em] text-muted-foreground">
               Mes
             </Label>
             <Select value={filters.month} onValueChange={(value) => onFilterChange({ ...filters, month: value })}>
-              <SelectTrigger id="month-filter">
+              <SelectTrigger id="month-filter" className="h-9">
                 <SelectValue placeholder="Todos" />
               </SelectTrigger>
               <SelectContent>
@@ -103,12 +103,12 @@ export function ExpenseFilters({ filters, onFilterChange, onReset, isDirty }: Ex
             </Select>
           </div>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="period-filter" className="text-xs uppercase tracking-wide text-muted-foreground">
+          <div className="space-y-1">
+            <Label htmlFor="period-filter" className="text-[0.7rem] uppercase tracking-[0.2em] text-muted-foreground">
               Quincena
             </Label>
             <Select value={filters.period} onValueChange={(value) => onFilterChange({ ...filters, period: value })}>
-              <SelectTrigger id="period-filter">
+              <SelectTrigger id="period-filter" className="h-9">
                 <SelectValue placeholder="Todas" />
               </SelectTrigger>
               <SelectContent>
@@ -119,13 +119,14 @@ export function ExpenseFilters({ filters, onFilterChange, onReset, isDirty }: Ex
             </Select>
           </div>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="search-filter" className="text-xs uppercase tracking-wide text-muted-foreground">
+          <div className="space-y-1">
+            <Label htmlFor="search-filter" className="text-[0.7rem] uppercase tracking-[0.2em] text-muted-foreground">
               Buscar
             </Label>
             <Input
               id="search-filter"
               type="search"
+              className="h-9"
               placeholder="Descripción o notas"
               value={filters.search}
               onChange={(e) => onFilterChange({ ...filters, search: e.target.value })}

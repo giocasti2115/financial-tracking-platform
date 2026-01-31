@@ -10,8 +10,9 @@ import { MetricsVisualization } from "@/components/dashboard/metrics-visualizati
 import { PageShell } from "@/components/dashboard/page-shell"
 import { calculations } from "@/lib/calculations"
 import type { QuincenalSummary } from "@/lib/types"
-import { Loader2 } from "lucide-react"
+import { Info, Loader2 } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { useQuery } from "@tanstack/react-query"
 import { apiClient } from "@/lib/api-client"
 
@@ -132,7 +133,21 @@ export default function DashboardPage() {
       <PageShell className="space-y-8">
         {/* Welcome Section */}
         <div className="space-y-2">
-          <h1 className="text-3xl font-bold tracking-tight">Bienvenido, {user?.name || "Usuario"}</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-3xl font-bold tracking-tight">Bienvenido, {user?.name || "Usuario"}</h1>
+            <Tooltip>
+              <TooltipTrigger
+                type="button"
+                className="text-muted-foreground transition-colors hover:text-foreground"
+                aria-label="Descripción del tablero general"
+              >
+                <Info className="h-4 w-4" />
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs">
+                Revisa de un vistazo tus activos, pasivos y flujo neto para el periodo actual.
+              </TooltipContent>
+            </Tooltip>
+          </div>
           <p className="text-muted-foreground">Aquí está tu resumen financiero actualizado</p>
         </div>
 
