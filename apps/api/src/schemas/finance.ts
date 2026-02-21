@@ -88,6 +88,11 @@ export const accountBalanceSnapshotInputSchema = z.object({
   notes: z.string().max(400).optional()
 });
 
+export const accountBalanceSnapshotUpdateSchema = accountBalanceSnapshotInputSchema.partial().refine(
+  (payload) => Object.keys(payload).length > 0,
+  'Debe proporcionar al menos un campo para actualizar'
+);
+
 export const microExpenseInputSchema = z.object({
   description: z.string().trim().min(1),
   amount: currencyValue.positive(),
@@ -113,5 +118,6 @@ export type DebtUpdateInput = z.infer<typeof debtUpdateSchema>;
 export type AssetInput = z.infer<typeof assetInputSchema>;
 export type AssetUpdateInput = z.infer<typeof assetUpdateSchema>;
 export type AccountBalanceSnapshotInput = z.infer<typeof accountBalanceSnapshotInputSchema>;
+export type AccountBalanceSnapshotUpdateInput = z.infer<typeof accountBalanceSnapshotUpdateSchema>;
 export type MicroExpenseInput = z.infer<typeof microExpenseInputSchema>;
 export type MonthFilterInput = z.infer<typeof monthFilterSchema>;

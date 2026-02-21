@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
@@ -11,6 +11,14 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import {
   Form,
   FormControl,
   FormField,
@@ -19,11 +27,19 @@ import {
   FormMessage,
 } from "@/components/ui/form"
 import { Badge } from "@/components/ui/badge"
-import { Trash2 } from "lucide-react"
+import { Pencil, Trash2 } from "lucide-react"
 import type { AccountBalanceSnapshot, Asset } from "@/lib/types"
 import { cn, parseDateInput } from "@/lib/utils"
 
 const NO_ACCOUNT_VALUE = "__no-account__"
+
+type SnapshotPayload = {
+  label: string
+  amount: number
+  recorded_on: string
+  account_id?: string | null
+  notes?: string
+}
 
 const snapshotSchema = z.object({
   label: z.string().trim().min(2, "Describe la cuenta o libre"),
@@ -45,9 +61,11 @@ export interface AccountBalanceTrackerProps {
   quincenaLabel: string
   pendingAmount: number
   defaultRecordDate?: string
-  onCreate: (payload: { label: string; amount: number; recorded_on: string; account_id?: string | null; notes?: string }) => Promise<void>
+  onCreate: (payload: SnapshotPayload) => Promise<void>
+  onUpdate: (snapshotId: string, payload: SnapshotPayload) => Promise<void>
   onDelete: (snapshotId: string) => Promise<void>
   isSubmitting: boolean
+  isUpdating?: boolean
   isDeleting?: boolean
   canAdd: boolean
 }
@@ -60,11 +78,14 @@ export function AccountBalanceTracker({
   pendingAmount,
   defaultRecordDate,
   onCreate,
+  onUpdate,
   onDelete,
   isSubmitting,
+  isUpdating,
   isDeleting,
   canAdd,
 }: AccountBalanceTrackerProps) {
+  const [editingSnapshot, setEditingSnapshot] = useState<AccountBalanceSnapshot | null>(null)
   const totalRecorded = useMemo(() => snapshots.reduce((sum, item) => sum + item.amount, 0), [snapshots])
   const availableAfter = totalRecorded - pendingAmount
   const formattedPending = pendingAmount.toLocaleString("es-CO")
@@ -81,10 +102,34 @@ export function AccountBalanceTracker({
       notes: "",
     },
   })
+  const editForm = useForm<z.infer<typeof snapshotSchema>>({
+    resolver: zodResolver(snapshotSchema),
+    defaultValues: {
+      label: "",
+      amount: "",
+      recorded_on: effectiveRecordDate,
+      account_id: "",
+      notes: "",
+    },
+  })
 
   useEffect(() => {
     form.setValue("recorded_on", effectiveRecordDate)
   }, [effectiveRecordDate, form])
+
+  useEffect(() => {
+    if (editingSnapshot) {
+      const parsed = parseDateInput(editingSnapshot.recorded_on ?? editingSnapshot.created_at)
+      const recordDate = parsed ? parsed.toISOString().slice(0, 10) : effectiveRecordDate
+      editForm.reset({
+        label: editingSnapshot.label,
+        amount: editingSnapshot.amount.toString(),
+        recorded_on: recordDate,
+        account_id: editingSnapshot.account_id ?? "",
+        notes: editingSnapshot.notes ?? "",
+      })
+    }
+  }, [editingSnapshot, editForm, effectiveRecordDate])
 
   const handleSubmit = form.handleSubmit(async (values) => {
     const amount = Number.parseFloat(values.amount)
@@ -102,6 +147,21 @@ export function AccountBalanceTracker({
       account_id: "",
       notes: "",
     })
+  })
+
+  const handleEditSubmit = editForm.handleSubmit(async (values) => {
+    if (!editingSnapshot) {
+      return
+    }
+    const amount = Number.parseFloat(values.amount)
+    await onUpdate(editingSnapshot.id, {
+      label: values.label.trim(),
+      amount,
+      recorded_on: values.recorded_on,
+      account_id: values.account_id ? values.account_id : null,
+      notes: values.notes?.trim() ? values.notes.trim() : undefined,
+    })
+    setEditingSnapshot(null)
   })
 
   const monthNames = [
@@ -180,7 +240,7 @@ export function AccountBalanceTracker({
                   <FormItem className="md:col-span-2">
                     <FormLabel>Etiqueta</FormLabel>
                     <FormControl>
-                      <Input placeholder="Libre Enero, Nequi, Bancolombia" {...field} />
+                      <Input placeholder="Nequi, Bancolombia, etc." {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -300,24 +360,37 @@ export function AccountBalanceTracker({
                         <p className="text-xs text-muted-foreground">{meta.periodLabel}</p>
                       </div>
                     </TableCell>
-                  <TableCell className="text-right font-semibold">
-                    ${snapshot.amount.toLocaleString("es-CO")}
-                  </TableCell>
-                  <TableCell className="max-w-[220px] text-sm text-muted-foreground">
-                    {snapshot.notes || "—"}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="text-red-600 hover:text-red-700"
-                      onClick={() => onDelete(snapshot.id)}
-                      disabled={Boolean(isDeleting)}
-                      aria-label="Eliminar registro"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </TableCell>
+                      <TableCell className="text-right font-semibold">
+                        ${snapshot.amount.toLocaleString("es-CO")}
+                      </TableCell>
+                      <TableCell className="max-w-[220px] text-sm text-muted-foreground">
+                        {snapshot.notes || "—"}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="gap-2 text-emerald-700 hover:text-emerald-800"
+                            onClick={() => setEditingSnapshot(snapshot)}
+                            disabled={Boolean(isUpdating)}
+                            aria-label="Editar registro"
+                          >
+                            <Pencil className="h-4 w-4" />
+                            Editar
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="text-red-600 hover:text-red-700"
+                            onClick={() => onDelete(snapshot.id)}
+                            disabled={Boolean(isDeleting)}
+                            aria-label="Eliminar registro"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
                   </TableRow>
                 )
               })}
@@ -325,6 +398,108 @@ export function AccountBalanceTracker({
           </Table>
         </div>
       </CardContent>
+          <Dialog open={Boolean(editingSnapshot)} onOpenChange={(open) => (!open ? setEditingSnapshot(null) : null)}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Editar saldo</DialogTitle>
+                <DialogDescription>
+                  Actualiza la información registrada para {editingSnapshot?.label ?? "este saldo"}.
+                </DialogDescription>
+              </DialogHeader>
+              <Form {...editForm}>
+                <form onSubmit={handleEditSubmit} className="grid gap-4">
+                  <FormField
+                    control={editForm.control}
+                    name="label"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Etiqueta</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Nequi, Bancolombia, etc." {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={editForm.control}
+                    name="amount"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Monto</FormLabel>
+                        <FormControl>
+                          <Input type="number" step="0.01" placeholder="0" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={editForm.control}
+                    name="recorded_on"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Fecha</FormLabel>
+                        <FormControl>
+                          <Input type="date" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={editForm.control}
+                    name="account_id"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Cuenta (opcional)</FormLabel>
+                        <Select
+                          value={field.value && field.value.length > 0 ? field.value : NO_ACCOUNT_VALUE}
+                          onValueChange={(value) => field.onChange(value === NO_ACCOUNT_VALUE ? "" : value)}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Solo libre" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value={NO_ACCOUNT_VALUE}>Sin cuenta</SelectItem>
+                            {assets.map((asset) => (
+                              <SelectItem key={asset.id} value={asset.id}>
+                                {asset.account_name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={editForm.control}
+                    name="notes"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Notas</FormLabel>
+                        <FormControl>
+                          <Textarea rows={2} placeholder="Detalle adicional (opcional)" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <DialogFooter>
+                    <Button type="button" variant="outline" onClick={() => setEditingSnapshot(null)}>
+                      Cancelar
+                    </Button>
+                    <Button type="submit" className="bg-emerald-600 hover:bg-emerald-700" disabled={Boolean(isUpdating)}>
+                      {isUpdating ? "Guardando..." : "Guardar cambios"}
+                    </Button>
+                  </DialogFooter>
+                </form>
+              </Form>
+            </DialogContent>
+          </Dialog>
     </Card>
   )
 }

@@ -12,7 +12,8 @@ import type {
   ExpenseUpdateInput,
   IncomeInput,
   MicroExpenseInput,
-  AccountBalanceSnapshotInput
+  AccountBalanceSnapshotInput,
+  AccountBalanceSnapshotUpdateInput
 } from '../schemas/finance.js';
 
 const isPgDatabaseError = (error: unknown): error is DatabaseError => error instanceof DatabaseError;
@@ -921,6 +922,120 @@ export const FinanceService = {
     );
 
     return mapAccountSnapshot({ ...result.rows[0], account_name: accountName });
+  },
+
+  updateAccountBalanceSnapshot: async (
+    userId: string,
+    snapshotId: string,
+    payload: AccountBalanceSnapshotUpdateInput
+  ) => {
+    await ensureAccountBalanceSnapshotsTable();
+    const normalized: Record<string, unknown> = {};
+
+    if (payload.label !== undefined) {
+      normalized.label = payload.label;
+    }
+
+    if (payload.amount !== undefined) {
+      normalized.amount = payload.amount;
+    }
+
+    if (payload.notes !== undefined) {
+      normalized.notes = payload.notes ?? null;
+    }
+
+    if (payload.recorded_on !== undefined) {
+      const recorded = new Date(payload.recorded_on);
+      if (Number.isNaN(recorded.getTime())) {
+        throw createError(400, 'Fecha inválida para el registro');
+      }
+
+      normalized.recorded_on = payload.recorded_on;
+      normalized.month = recorded.getUTCMonth() + 1;
+      normalized.year = recorded.getUTCFullYear();
+    }
+
+    if (payload.account_id !== undefined) {
+      if (payload.account_id === null) {
+        normalized.account_id = null;
+      } else {
+        const accountResult = await query('SELECT id FROM accounts WHERE id = $1 AND user_id = $2', [
+          payload.account_id,
+          userId
+        ]);
+
+        if (!accountResult.rowCount) {
+          throw createError(404, 'Cuenta no encontrada para el usuario');
+        }
+
+        normalized.account_id = accountResult.rows[0].id;
+      }
+    }
+
+    if (Object.keys(normalized).length === 0) {
+      const existing = await query(
+        `SELECT abs.id,
+                abs.user_id,
+                abs.account_id,
+                abs.label,
+                abs.amount,
+                abs.recorded_on,
+                abs.month,
+                abs.year,
+                abs.notes,
+                abs.created_at,
+                a.name AS account_name
+           FROM account_balance_snapshots abs
+           LEFT JOIN accounts a ON abs.account_id = a.id
+          WHERE abs.id = $1 AND abs.user_id = $2` ,
+        [snapshotId, userId]
+      );
+
+      if (!existing.rowCount) {
+        throw createError(404, 'Registro no encontrado');
+      }
+
+      return mapAccountSnapshot(existing.rows[0]);
+    }
+
+    const setClauses = Object.keys(normalized).map((key, index) => `${key} = $${index + 3}`);
+    const values = Object.values(normalized);
+
+    const result = await query(
+      `UPDATE account_balance_snapshots
+          SET ${setClauses.join(', ')}
+        WHERE id = $1 AND user_id = $2
+        RETURNING id` ,
+      [snapshotId, userId, ...values]
+    );
+
+    if (!result.rowCount) {
+      throw createError(404, 'Registro no encontrado');
+    }
+
+    const updated = await query(
+      `SELECT abs.id,
+              abs.user_id,
+              abs.account_id,
+              abs.label,
+              abs.amount,
+              abs.recorded_on,
+              abs.month,
+              abs.year,
+              abs.notes,
+              abs.created_at,
+              a.name AS account_name
+         FROM account_balance_snapshots abs
+         LEFT JOIN accounts a ON abs.account_id = a.id
+        WHERE abs.id = $1 AND abs.user_id = $2` ,
+      [snapshotId, userId]
+    );
+
+    if (!updated.rowCount) {
+      throw createError(404, 'Registro no encontrado');
+    }
+
+    return mapAccountSnapshot(updated.rows[0]);
   },
 
   deleteAccountBalanceSnapshot: async (userId: string, snapshotId: string) => {

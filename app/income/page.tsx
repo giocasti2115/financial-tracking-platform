@@ -118,6 +118,12 @@ export default function IncomePage() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["account-balance-snapshots"] }),
   })
 
+  const updateSnapshotMutation = useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: Parameters<typeof apiClient.createAccountBalanceSnapshot>[0] }) =>
+      apiClient.updateAccountBalanceSnapshot(id, payload),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["account-balance-snapshots"] }),
+  })
+
   const deleteSnapshotMutation = useMutation({
     mutationFn: apiClient.deleteAccountBalanceSnapshot,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["account-balance-snapshots"] }),
@@ -251,6 +257,23 @@ export default function IncomePage() {
       await createSnapshotMutation.mutateAsync(payload)
     } catch (error) {
       alert(error instanceof Error ? error.message : "Ocurrió un error al guardar el saldo.")
+    }
+  }
+
+  const handleUpdateSnapshot = async (
+    snapshotId: string,
+    payload: {
+      label: string
+      amount: number
+      recorded_on: string
+      account_id?: string | null
+      notes?: string
+    },
+  ) => {
+    try {
+      await updateSnapshotMutation.mutateAsync({ id: snapshotId, payload })
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Ocurrió un error al actualizar el saldo.")
     }
   }
 
@@ -507,8 +530,10 @@ export default function IncomePage() {
           pendingAmount={pendingAmount}
           defaultRecordDate={defaultRecordDate}
           onCreate={handleCreateSnapshot}
+          onUpdate={handleUpdateSnapshot}
           onDelete={handleDeleteSnapshot}
           isSubmitting={createSnapshotMutation.isPending}
+          isUpdating={updateSnapshotMutation.isPending}
           isDeleting={deleteSnapshotMutation.isPending}
           canAdd={canAddSnapshots}
         />

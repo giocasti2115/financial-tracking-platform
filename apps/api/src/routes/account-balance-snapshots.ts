@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { authMiddleware } from '../middleware/auth.js';
-import { accountBalanceSnapshotInputSchema, monthFilterSchema } from '../schemas/finance.js';
+import { accountBalanceSnapshotInputSchema, accountBalanceSnapshotUpdateSchema, monthFilterSchema } from '../schemas/finance.js';
 import { FinanceService } from '../services/finance-service.js';
 import { asyncHandler } from '../utils/async-handler.js';
 
@@ -23,6 +23,15 @@ accountBalanceSnapshotsRouter.post(
     const payload = accountBalanceSnapshotInputSchema.parse(req.body);
     const created = await FinanceService.createAccountBalanceSnapshot(req.auth!.userId, payload);
     res.status(201).json({ data: created });
+  })
+);
+
+accountBalanceSnapshotsRouter.put(
+  '/:id',
+  asyncHandler(async (req, res) => {
+    const payload = accountBalanceSnapshotUpdateSchema.parse(req.body);
+    const updated = await FinanceService.updateAccountBalanceSnapshot(req.auth!.userId, req.params.id, payload);
+    res.json({ data: updated });
   })
 );
 

@@ -93,6 +93,8 @@ type NewAccountBalanceSnapshotPayload = {
   notes?: string
 }
 
+type UpdateAccountBalanceSnapshotPayload = Partial<NewAccountBalanceSnapshotPayload>
+
 type NewMicroExpensePayload = {
   description: string
   amount: number
@@ -199,6 +201,13 @@ export const apiClient = {
   createAccountBalanceSnapshot: async (payload: NewAccountBalanceSnapshotPayload) => {
     const response = await request<ApiResponse<AccountBalanceSnapshot>>(`/account-balance-snapshots`, {
       method: "POST",
+      body: JSON.stringify(payload),
+    })
+    return response.data
+  },
+  updateAccountBalanceSnapshot: async (id: string, payload: UpdateAccountBalanceSnapshotPayload) => {
+    const response = await request<ApiResponse<AccountBalanceSnapshot>>(`/account-balance-snapshots/${id}`, {
+      method: "PUT",
       body: JSON.stringify(payload),
     })
     return response.data
@@ -318,4 +327,5 @@ export type {
   UpdateDebtPayload,
   NewMicroExpensePayload,
   NewAccountBalanceSnapshotPayload,
+  UpdateAccountBalanceSnapshotPayload,
 }
