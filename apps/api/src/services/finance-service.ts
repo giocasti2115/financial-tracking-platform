@@ -11,7 +11,8 @@ import type {
   ExpensePaymentInput,
   ExpenseUpdateInput,
   IncomeInput,
-  MicroExpenseInput
+  MicroExpenseInput,
+  AccountBalanceSnapshotInput
 } from '../schemas/finance.js';
 
 const isPgDatabaseError = (error: unknown): error is DatabaseError => error instanceof DatabaseError;
@@ -22,13 +23,46 @@ const toNumber = (value: string | number | null | undefined) => {
   return Number.isNaN(parsed) ? null : parsed;
 };
 
+const toDateOnly = (value: unknown) => {
+  if (!value) {
+    return null;
+  }
+
+  if (value instanceof Date) {
+    return value.toISOString().slice(0, 10);
+  }
+
+  if (typeof value === 'string') {
+    return value.includes('T') ? value.split('T')[0] : value;
+  }
+
+  return null;
+};
+
+const toIsoTimestamp = (value: unknown) => {
+  if (!value) {
+    return new Date().toISOString();
+  }
+
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+
+  const parsed = new Date(value as string);
+  return Number.isNaN(parsed.getTime()) ? new Date().toISOString() : parsed.toISOString();
+};
+
 const mapExpense = (row: Record<string, any>) => ({
   ...row,
+  payment_date: toDateOnly(row.payment_date) ?? row.payment_date,
+  paid_date: toDateOnly(row.paid_date) ?? row.paid_date,
   amount: Number(row.amount),
   amount_paid: Number(row.amount_paid ?? 0),
   semester: row.semester === null ? null : Number(row.semester),
   year: Number(row.year),
-  asset_id: row.asset_id ?? null
+  asset_id: row.asset_id ?? null,
+  created_at: toIsoTimestamp(row.created_at),
+  updated_at: toIsoTimestamp(row.updated_at)
 });
 
 const mapIncome = (row: Record<string, any>) => ({
@@ -59,6 +93,20 @@ const mapAsset = (row: Record<string, any>) => ({
   created_at: row.created_at ? new Date(row.created_at).toISOString() : new Date().toISOString(),
   updated_at: row.updated_at ? new Date(row.updated_at).toISOString() : new Date().toISOString(),
   currency_code: row.currency_code
+});
+
+const mapAccountSnapshot = (row: Record<string, any>) => ({
+  id: row.id,
+  user_id: row.user_id,
+  account_id: row.account_id ?? null,
+  account_name: row.account_name ?? null,
+  label: row.label,
+  amount: Number(row.amount),
+  recorded_on: toDateOnly(row.recorded_on) ?? row.recorded_on,
+  month: Number(row.month),
+  year: Number(row.year),
+  notes: row.notes ?? null,
+  created_at: toIsoTimestamp(row.created_at)
 });
 
 const mapMicroExpense = (row: Record<string, any>) => ({
@@ -774,5 +822,84 @@ export const FinanceService = {
         total: Number(row.total)
       }))
     };
+  },
+
+  listAccountBalanceSnapshots: async (userId: string, month?: string) => {
+    const params: unknown[] = [userId];
+    let filterClause = '';
+
+    if (month) {
+      const { startDate, endDate } = getMonthBounds(month);
+      filterClause = 'AND abs.recorded_on >= $2 AND abs.recorded_on < $3';
+      params.push(startDate, endDate);
+    }
+
+    const result = await query(
+      `SELECT abs.id,
+              abs.user_id,
+              abs.account_id,
+              abs.label,
+              abs.amount,
+              abs.recorded_on,
+              abs.month,
+              abs.year,
+              abs.notes,
+              abs.created_at,
+              a.name AS account_name
+         FROM account_balance_snapshots abs
+         LEFT JOIN accounts a ON abs.account_id = a.id
+        WHERE abs.user_id = $1
+        ${filterClause}
+        ORDER BY abs.recorded_on DESC, abs.created_at DESC` ,
+      params
+    );
+
+    return result.rows.map(mapAccountSnapshot);
+  },
+
+  createAccountBalanceSnapshot: async (userId: string, payload: AccountBalanceSnapshotInput) => {
+    const recorded = new Date(payload.recorded_on);
+    if (Number.isNaN(recorded.getTime())) {
+      throw createError(400, 'Fecha inválida para el registro');
+    }
+
+    const month = recorded.getUTCMonth() + 1;
+    const year = recorded.getUTCFullYear();
+    let accountName: string | null = null;
+    let accountId: string | null = null;
+
+    if (payload.account_id) {
+      const accountResult = await query('SELECT id, name FROM accounts WHERE id = $1 AND user_id = $2', [
+        payload.account_id,
+        userId
+      ]);
+
+      if (!accountResult.rowCount) {
+        throw createError(404, 'Cuenta no encontrada para el usuario');
+      }
+
+      accountId = accountResult.rows[0].id;
+      accountName = accountResult.rows[0].name;
+    }
+
+    const result = await query(
+      `INSERT INTO account_balance_snapshots (user_id, account_id, label, amount, recorded_on, month, year, notes)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+       RETURNING id, user_id, account_id, label, amount, recorded_on, month, year, notes, created_at` ,
+      [userId, accountId, payload.label, payload.amount, payload.recorded_on, month, year, payload.notes ?? null]
+    );
+
+    return mapAccountSnapshot({ ...result.rows[0], account_name: accountName });
+  },
+
+  deleteAccountBalanceSnapshot: async (userId: string, snapshotId: string) => {
+    const result = await query('DELETE FROM account_balance_snapshots WHERE id = $1 AND user_id = $2', [
+      snapshotId,
+      userId
+    ]);
+
+    if (!result.rowCount) {
+      throw createError(404, 'Registro no encontrado');
+    }
   }
 };

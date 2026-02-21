@@ -28,7 +28,8 @@ export function MonthlyProjectionChart({ projections }: MonthlyProjectionChartPr
     name: `${monthNames[proj.month - 1]} ${proj.year}`,
     Ingresos: proj.total_income,
     Gastos: proj.total_expenses,
-    Deudas: proj.total_debt_payments,
+    Intereses: proj.total_debt_interest,
+    Capital: proj.total_debt_principal,
     Disponible: proj.available,
   }))
 
@@ -44,9 +45,14 @@ export function MonthlyProjectionChart({ projections }: MonthlyProjectionChartPr
       color: "#f97316",
     },
     {
-      name: "Pagos de Deudas",
-      value: projections.reduce((sum, item) => sum + item.total_debt_payments, 0),
-      color: "#ef4444",
+      name: "Intereses de deuda",
+      value: projections.reduce((sum, item) => sum + item.total_debt_interest, 0),
+      color: "#f43f5e",
+    },
+    {
+      name: "Abono a capital",
+      value: projections.reduce((sum, item) => sum + item.total_debt_principal, 0),
+      color: "#7c3aed",
     },
   ]
 
@@ -88,9 +94,10 @@ export function MonthlyProjectionChart({ projections }: MonthlyProjectionChartPr
                 contentStyle={{ backgroundColor: "white", border: "1px solid #e5e7eb" }}
               />
               <Legend />
-              <Bar dataKey="Ingresos" fill="#10b981" radius={[4, 4, 0, 0]} maxBarSize={28} />
-              <Bar dataKey="Gastos" fill="#f97316" radius={[4, 4, 0, 0]} maxBarSize={28} />
-              <Bar dataKey="Deudas" fill="#ef4444" radius={[4, 4, 0, 0]} maxBarSize={28} />
+              <Bar dataKey="Ingresos" fill="#10b981" radius={[4, 4, 0, 0]} maxBarSize={26} />
+              <Bar dataKey="Gastos" fill="#f97316" radius={[4, 4, 0, 0]} maxBarSize={26} />
+              <Bar dataKey="Intereses" name="Intereses deuda" stackId="debt" fill="#f43f5e" radius={[4, 4, 0, 0]} maxBarSize={26} />
+              <Bar dataKey="Capital" name="Capital deuda" stackId="debt" fill="#7c3aed" radius={[4, 4, 0, 0]} maxBarSize={26} />
               <Line type="monotone" dataKey="Disponible" stroke="#2563eb" strokeWidth={2} dot={{ r: 3 }} />
             </ComposedChart>
           </ResponsiveContainer>

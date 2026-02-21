@@ -56,6 +56,22 @@ CREATE TABLE IF NOT EXISTS accounts (
   UNIQUE (user_id, name)
 );
 
+CREATE TABLE IF NOT EXISTS account_balance_snapshots (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  account_id UUID REFERENCES accounts(id) ON DELETE SET NULL,
+  label TEXT NOT NULL,
+  amount DECIMAL(15, 2) NOT NULL CHECK (amount >= 0),
+  recorded_on DATE NOT NULL DEFAULT CURRENT_DATE,
+  month SMALLINT NOT NULL CHECK (month BETWEEN 1 AND 12),
+  year INTEGER NOT NULL,
+  notes TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_account_balance_snapshots_period
+  ON account_balance_snapshots(user_id, year DESC, month DESC);
+
 CREATE TABLE IF NOT EXISTS account_entries (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   account_id UUID NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,

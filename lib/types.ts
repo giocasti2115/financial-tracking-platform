@@ -110,6 +110,20 @@ export interface AssetTransaction {
   created_at: string
 }
 
+export interface AccountBalanceSnapshot {
+  id: string
+  user_id: string
+  label: string
+  amount: number
+  recorded_on: string
+  month: number
+  year: number
+  account_id?: string | null
+  account_name?: string | null
+  notes?: string | null
+  created_at: string
+}
+
 export interface MicroExpense {
   id: string
   user_id: string

@@ -76,6 +76,8 @@ export function DebtProjectionTable({ projections }: DebtProjectionTableProps) {
                 <TableRow>
                   <TableHead>Deuda</TableHead>
                   <TableHead className="text-right">Pago Proyectado</TableHead>
+                  <TableHead className="text-right">Interés</TableHead>
+                  <TableHead className="text-right">Capital</TableHead>
                   <TableHead className="text-right">Saldo Después</TableHead>
                   <TableHead className="text-right">Estado</TableHead>
                 </TableRow>
@@ -86,6 +88,12 @@ export function DebtProjectionTable({ projections }: DebtProjectionTableProps) {
                     <TableCell className="font-medium">{proj.entity_name}</TableCell>
                     <TableCell className="text-right font-semibold">
                       ${proj.projected_payment.toLocaleString("es-CO")}
+                    </TableCell>
+                    <TableCell className="text-right text-muted-foreground">
+                      ${proj.interest_component.toLocaleString("es-CO")}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      ${proj.principal_component.toLocaleString("es-CO")}
                     </TableCell>
                     <TableCell className="text-right">${proj.projected_balance.toLocaleString("es-CO")}</TableCell>
                     <TableCell className="text-right">

@@ -49,3 +49,32 @@ export function parseCurrencyInput(value: string | number | null | undefined) {
 
   return Number.parseFloat(normalized)
 }
+
+const DATE_INPUT_PATTERN = /^\d{4}-\d{2}-\d{2}$/
+
+export function parseDateInput(value: string | null | undefined) {
+  if (!value) {
+    return null
+  }
+
+  const trimmed = value.trim()
+  if (!trimmed) {
+    return null
+  }
+
+  if (DATE_INPUT_PATTERN.test(trimmed)) {
+    const [year, month, day] = trimmed.split("-").map((part) => Number.parseInt(part, 10))
+    if ([year, month, day].some((part) => Number.isNaN(part))) {
+      return null
+    }
+    const date = new Date(year, month - 1, day)
+    return Number.isNaN(date.getTime()) ? null : date
+  }
+
+  const timestamp = Date.parse(trimmed)
+  if (Number.isNaN(timestamp)) {
+    return null
+  }
+
+  return new Date(timestamp)
+}

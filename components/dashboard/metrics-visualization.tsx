@@ -6,7 +6,7 @@ import type { Asset, Debt, Expense, Income } from "@/lib/types"
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, Line } from "recharts"
 import { StatsCard } from "@/components/dashboard/stats-card"
 import { TrendingUp, ShieldCheck, PiggyBank, Flame } from "lucide-react"
-import { cn } from "@/lib/utils"
+import { cn, parseDateInput } from "@/lib/utils"
 
 interface MetricsVisualizationProps {
   incomes: Income[]
@@ -74,7 +74,8 @@ export function MetricsVisualization({ incomes, expenses, debts, assets }: Metri
       const totalExpenses = expenses
         .filter((expense) => {
           if (expense.year !== year) return false
-          const paymentDate = new Date(expense.payment_date)
+          const paymentDate = parseDateInput(expense.payment_date)
+          if (!paymentDate) return false
           return paymentDate.getMonth() + 1 === month
         })
         .reduce((sum, expense) => sum + expense.amount, 0)

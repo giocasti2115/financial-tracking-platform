@@ -199,7 +199,7 @@ export default function ProjectionsPage() {
                           month: "long",
                         })}
                       </h4>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                      <div className="grid grid-cols-2 md:grid-cols-6 gap-4 text-sm">
                         <div>
                           <p className="text-muted-foreground">Ingresos</p>
                           <p className="font-semibold text-emerald-600">${proj.total_income.toLocaleString("es-CO")}</p>
@@ -208,6 +208,18 @@ export default function ProjectionsPage() {
                           <p className="text-muted-foreground">Gastos</p>
                           <p className="font-semibold text-orange-600">
                             ${proj.total_expenses.toLocaleString("es-CO")}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-muted-foreground">Intereses</p>
+                          <p className="font-semibold text-rose-600">
+                            ${proj.total_debt_interest.toLocaleString("es-CO")}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-muted-foreground">Abono capital</p>
+                          <p className="font-semibold text-violet-600">
+                            ${proj.total_debt_principal.toLocaleString("es-CO")}
                           </p>
                         </div>
                         <div>

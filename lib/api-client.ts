@@ -8,6 +8,7 @@ import type {
   DebtPaymentFrequency,
   MicroExpense,
   MicroExpenseSummary,
+  AccountBalanceSnapshot,
 } from "./types"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000"
@@ -82,6 +83,14 @@ type NewAssetPayload = {
 
 type UpdateAssetPayload = Partial<Omit<NewAssetPayload, "current_balance">> & {
   current_balance?: number
+}
+
+type NewAccountBalanceSnapshotPayload = {
+  label: string
+  amount: number
+  recorded_on: string
+  account_id?: string | null
+  notes?: string
 }
 
 type NewMicroExpensePayload = {
@@ -177,6 +186,25 @@ export const apiClient = {
   },
   deleteAsset: async (id: string) => {
     await request(`/assets/${id}`, { method: "DELETE" })
+  },
+
+  // Account balance snapshots
+  getAccountBalanceSnapshots: async (month?: string) => {
+    const query = month ? `?month=${encodeURIComponent(month)}` : ""
+    const response = await request<ApiResponse<AccountBalanceSnapshot[]>>(
+      `/account-balance-snapshots${query}`,
+    )
+    return response.data
+  },
+  createAccountBalanceSnapshot: async (payload: NewAccountBalanceSnapshotPayload) => {
+    const response = await request<ApiResponse<AccountBalanceSnapshot>>(`/account-balance-snapshots`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    })
+    return response.data
+  },
+  deleteAccountBalanceSnapshot: async (id: string) => {
+    await request(`/account-balance-snapshots/${id}`, { method: "DELETE" })
   },
 
   // Expenses
@@ -289,4 +317,5 @@ export type {
   UpdateAssetPayload,
   UpdateDebtPayload,
   NewMicroExpensePayload,
+  NewAccountBalanceSnapshotPayload,
 }

@@ -16,8 +16,9 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { apiClient } from "@/lib/api-client"
-import { clampFinancialYear } from "@/lib/utils"
+import { clampFinancialYear, parseDateInput } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
+import { Progress } from "@/components/ui/progress"
 
 export default function ExpensesPage() {
   const { toast } = useToast()
@@ -254,13 +255,39 @@ export default function ExpensesPage() {
   }
 
   const totalExpenses = filteredExpenses.reduce((sum, e) => sum + e.amount, 0)
+  const totalPaidAmount = filteredExpenses.reduce(
+    (sum, expense) => sum + Math.min(expense.amount_paid ?? 0, expense.amount),
+    0,
+  )
+  const totalPendingAmount = Math.max(totalExpenses - totalPaidAmount, 0)
+  const paidPercentage = totalExpenses > 0 ? (totalPaidAmount / totalExpenses) * 100 : 0
+  const pendingPercentage = totalExpenses > 0 ? (totalPendingAmount / totalExpenses) * 100 : 0
+
+  const pendingByPeriod = [
+    {
+      label: "Primera quincena",
+      amount: filteredExpenses
+        .filter((expense) => expense.payment_period === "primera_quincena")
+        .reduce((sum, expense) => sum + Math.max(expense.amount - (expense.amount_paid ?? 0), 0), 0),
+      count: filteredExpenses.filter((expense) => expense.payment_period === "primera_quincena" && !expense.is_paid).length,
+    },
+    {
+      label: "Segunda quincena",
+      amount: filteredExpenses
+        .filter((expense) => expense.payment_period === "segunda_quincena")
+        .reduce((sum, expense) => sum + Math.max(expense.amount - (expense.amount_paid ?? 0), 0), 0),
+      count: filteredExpenses.filter((expense) => expense.payment_period === "segunda_quincena" && !expense.is_paid).length,
+    },
+  ]
 
   const overdueExpenses = filteredExpenses.filter((e) => {
     if (e.is_paid) return false
-    const paymentDate = new Date(e.payment_date)
+    const paymentDate = parseDateInput(e.payment_date)
+    if (!paymentDate) return false
+    paymentDate.setHours(0, 0, 0, 0)
     const today = new Date()
     today.setHours(0, 0, 0, 0)
-    return paymentDate < today
+    return paymentDate.getTime() < today.getTime()
   })
 
   const unpaidExpenses = filteredExpenses.filter((e) => !e.is_paid)
@@ -338,6 +365,44 @@ export default function ExpensesPage() {
                   <span className="text-red-600 font-medium">Vencidos: {overdueExpenses.length}</span>
                 </div>
               )}
+            </div>
+            <div className="mt-6 space-y-2">
+              <div className="flex items-center justify-between text-sm">
+                <div>
+                  <p className="text-muted-foreground">Pagado</p>
+                  <p className="text-lg font-semibold text-emerald-700">
+                    ${totalPaidAmount.toLocaleString("es-CO")}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-muted-foreground">Pendiente</p>
+                  <p className="text-lg font-semibold text-amber-700">
+                    ${totalPendingAmount.toLocaleString("es-CO")}
+                  </p>
+                </div>
+              </div>
+              <Progress value={paidPercentage} className="h-3 bg-emerald-100" indicatorClassName="bg-emerald-500" />
+              <div className="flex justify-between text-xs text-muted-foreground">
+                <span>{paidPercentage.toFixed(1)}% cubierto</span>
+                <span>{pendingPercentage.toFixed(1)}% pendiente</span>
+              </div>
+            </div>
+            <div className="mt-6 grid gap-3 md:grid-cols-2">
+              {pendingByPeriod.map((item) => (
+                <div key={item.label} className="rounded-xl border border-white/60 bg-white/70 p-3 shadow-xs">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs uppercase text-muted-foreground">{item.label}</p>
+                      <p className="text-lg font-semibold text-slate-800">
+                        ${item.amount.toLocaleString("es-CO")}
+                      </p>
+                    </div>
+                    <div className="text-right text-xs text-muted-foreground">
+                      <p>{item.count} gastos pendientes</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           </CardContent>
         </Card>

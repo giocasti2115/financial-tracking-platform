@@ -1,4 +1,5 @@
 import type { Expense, Debt, Asset, Income, FinancialSummary, QuincenalSummary } from "./types"
+import { parseDateInput } from "./utils"
 
 const getDebtFrequency = (debt: Debt) => (debt.payment_frequency === "biweekly" ? "biweekly" : "monthly")
 
@@ -78,7 +79,10 @@ export const calculations = {
       if (e.year !== year || e.payment_period !== period) return false
 
       // Extract month from payment_date (format: YYYY-MM-DD)
-      const expenseDate = new Date(e.payment_date)
+      const expenseDate = parseDateInput(e.payment_date)
+      if (!expenseDate) {
+        return false
+      }
       const expenseMonth = expenseDate.getMonth() + 1 // getMonth() returns 0-11
 
       return expenseMonth === month

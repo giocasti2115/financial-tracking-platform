@@ -1,4 +1,4 @@
-import type { Debt, Expense, Income } from "./types"
+import type { Debt, DebtPaymentFrequency, Expense, Income } from "./types"
 
 export interface DebtProjection {
   debt_id: string
@@ -8,6 +8,8 @@ export interface DebtProjection {
   projected_payment: number
   projected_balance: number
   is_final_payment: boolean
+  interest_component: number
+  principal_component: number
 }
 
 export interface MonthlyProjection {
@@ -16,8 +18,50 @@ export interface MonthlyProjection {
   total_income: number
   total_expenses: number
   total_debt_payments: number
+  total_debt_interest: number
+  total_debt_principal: number
   available: number
   debt_projections: DebtProjection[]
+}
+
+const toCurrency = (value: number) => Number(Number(value).toFixed(2))
+
+const normalizeFrequency = (frequency?: DebtPaymentFrequency | null) =>
+  frequency === "biweekly" ? "biweekly" : "monthly"
+
+const getPeriodicInterestRate = (interestRate?: number | null, frequency?: DebtPaymentFrequency | null) => {
+  const normalizedRate = Number(interestRate ?? 0) / 100
+  return normalizeFrequency(frequency) === "biweekly" ? normalizedRate / 2 : normalizedRate
+}
+
+const splitPayment = (
+  balance: number,
+  paymentAmount: number,
+  interestRate?: number | null,
+  frequency?: DebtPaymentFrequency | null,
+) => {
+  if (paymentAmount <= 0 || balance <= 0) {
+    return {
+      interest: 0,
+      principal: 0,
+      payment: 0,
+      balanceAfter: balance,
+    }
+  }
+
+  const periodicRate = getPeriodicInterestRate(interestRate, frequency)
+  const interest = periodicRate > 0 ? toCurrency(balance * periodicRate) : 0
+  const principalBeforeCap = Math.max(paymentAmount - interest, 0)
+  const principal = toCurrency(Math.min(principalBeforeCap, balance))
+  const payment = toCurrency(interest + principal)
+  const balanceAfter = toCurrency(Math.max(balance - principal, 0))
+
+  return {
+    interest,
+    principal,
+    payment,
+    balanceAfter,
+  }
 }
 
 export const projections = {
@@ -31,20 +75,51 @@ export const projections = {
       .forEach((debt) => {
         let remainingBalance = debt.current_balance
         let monthOffset = 0
+        const paymentsPerMonth = normalizeFrequency(debt.payment_frequency) === "biweekly" ? 2 : 1
+        const scheduledPayment = toCurrency(debt.monthly_payment ?? 0)
+
+        if (scheduledPayment <= 0) {
+          return
+        }
 
         while (remainingBalance > 0 && monthOffset < months) {
           const projectionDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + monthOffset, 1)
-          const payment = Math.min(debt.monthly_payment!, remainingBalance)
-          remainingBalance -= payment
+          let monthlyInterest = 0
+          let monthlyPrincipal = 0
+          let monthlyPayment = 0
+
+          for (let i = 0; i < paymentsPerMonth && remainingBalance > 0; i++) {
+            const { interest, principal, payment, balanceAfter } = splitPayment(
+              remainingBalance,
+              scheduledPayment,
+              debt.interest_rate,
+              debt.payment_frequency,
+            )
+
+            monthlyInterest += interest
+            monthlyPrincipal += principal
+            monthlyPayment += payment
+            remainingBalance = balanceAfter
+
+            if (payment === 0) {
+              break
+            }
+          }
+
+          if (monthlyPayment === 0) {
+            break
+          }
 
           projections.push({
             debt_id: debt.id,
             entity_name: debt.entity_name,
             month: projectionDate.getMonth() + 1,
             year: projectionDate.getFullYear(),
-            projected_payment: payment,
+            projected_payment: toCurrency(monthlyPayment),
             projected_balance: Math.max(0, remainingBalance),
             is_final_payment: remainingBalance <= 0,
+            interest_component: toCurrency(monthlyInterest),
+            principal_component: toCurrency(monthlyPrincipal),
           })
 
           monthOffset++
@@ -80,6 +155,8 @@ export const projections = {
       // Get debt payments for this month
       const monthDebtProjections = debtProjections.filter((dp) => dp.month === month && dp.year === year)
       const totalDebtPayments = monthDebtProjections.reduce((sum, dp) => sum + dp.projected_payment, 0)
+      const totalDebtInterest = monthDebtProjections.reduce((sum, dp) => sum + dp.interest_component, 0)
+      const totalDebtPrincipal = monthDebtProjections.reduce((sum, dp) => sum + dp.principal_component, 0)
 
       projections.push({
         month,
@@ -87,6 +164,8 @@ export const projections = {
         total_income: avgMonthlyIncome,
         total_expenses: avgMonthlyExpenses,
         total_debt_payments: totalDebtPayments,
+        total_debt_interest: totalDebtInterest,
+        total_debt_principal: totalDebtPrincipal,
         available: avgMonthlyIncome - avgMonthlyExpenses - totalDebtPayments,
         debt_projections: monthDebtProjections,
       })
@@ -98,16 +177,22 @@ export const projections = {
   // Calculate when all debts will be paid off
   calculateDebtFreeDate(debts: Debt[]): Date | null {
     const activeDebts = debts.filter((d) => d.status === "active" && d.monthly_payment && d.monthly_payment > 0)
-
     if (activeDebts.length === 0) return null
 
-    const monthsToPayOff = activeDebts.map((debt) => Math.ceil(debt.current_balance / debt.monthly_payment!))
+    const projected = this.generateDebtProjections(activeDebts, 360)
+    const finalPayment = projected.reduce<DebtProjection | null>((latest, current) => {
+      if (!current.is_final_payment) return latest
+      if (!latest) return current
+      if (current.year > latest.year) return current
+      if (current.year === latest.year && current.month > latest.month) return current
+      return latest
+    }, null)
 
-    const maxMonths = Math.max(...monthsToPayOff)
-    const debtFreeDate = new Date()
-    debtFreeDate.setMonth(debtFreeDate.getMonth() + maxMonths)
+    if (!finalPayment) {
+      return null
+    }
 
-    return debtFreeDate
+    return new Date(finalPayment.year, finalPayment.month - 1, 1)
   },
 
   // Generate expense report by category

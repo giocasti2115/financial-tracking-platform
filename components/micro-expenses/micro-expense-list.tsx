@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import type { MicroExpense } from "@/lib/types"
 import { Trash2 } from "lucide-react"
-import { cn } from "@/lib/utils"
+import { cn, parseDateInput } from "@/lib/utils"
 
 interface MicroExpenseListProps {
   expenses: MicroExpense[]
@@ -61,11 +61,13 @@ export function MicroExpenseList({ expenses, onDelete, deletingId, isDisabled, c
       <CardContent className="p-0">
         <ScrollArea className="h-[480px] sm:h-[520px] lg:h-[600px] xl:h-[640px]">
           <div className="divide-y">
-            {grouped.map(([date, items]) => (
-              <Fragment key={date}>
-                <div className="bg-muted/40 px-4 py-2 text-sm font-medium capitalize">
-                  {dateFormatter.format(new Date(date))}
-                </div>
+            {grouped.map(([date, items]) => {
+              const parsedDate = parseDateInput(date)
+              return (
+                <Fragment key={date}>
+                  <div className="bg-muted/40 px-4 py-2 text-sm font-medium capitalize">
+                    {parsedDate ? dateFormatter.format(parsedDate) : date}
+                  </div>
                 <ul className="px-4 py-2 space-y-3">
                   {items.map((expense) => (
                     <li
@@ -92,8 +94,9 @@ export function MicroExpenseList({ expenses, onDelete, deletingId, isDisabled, c
                     </li>
                   ))}
                 </ul>
-              </Fragment>
-            ))}
+                </Fragment>
+              )
+            })}
           </div>
         </ScrollArea>
       </CardContent>

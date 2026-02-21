@@ -69,6 +69,16 @@ export function CloneExpensesDialog({ expenses, onClone }: CloneExpensesDialogPr
     { value: "12", label: "Diciembre" },
   ]
 
+  const getDayForPeriod = (year: number, month: number, period: Expense["payment_period"]) => {
+    if (period === "primera_quincena") {
+      return "15"
+    }
+
+    const daysInMonth = new Date(year, month, 0).getDate()
+    const day = Math.min(30, daysInMonth)
+    return String(day).padStart(2, "0")
+  }
+
   const getMonthYearKey = (expense: Expense) => {
     const [year, month] = expense.payment_date.split("-")
     return `${year}-${month}`
@@ -181,7 +191,7 @@ export function CloneExpensesDialog({ expenses, onClone }: CloneExpensesDialogPr
 
         const resolvedSemester =
           targetSemester === "auto" ? (targetMonthNumber <= 6 ? 1 : 2) : Number(targetSemester)
-        const day = resolvedPeriod === "primera_quincena" ? "15" : "30"
+        const day = getDayForPeriod(targetYearNumber, targetMonthNumber, resolvedPeriod)
 
         clonedExpenses.push({
           user_id: expense.user_id,

@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation"
 import { useAuth } from "@/components/auth-provider"
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout"
 import { PageShell } from "@/components/dashboard/page-shell"
-import type { Income } from "@/lib/types"
+import type { AccountBalanceSnapshot, Asset, Income } from "@/lib/types"
 import { DollarSign, Info, Loader2, Plus, Trash2 } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -26,6 +26,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { apiClient } from "@/lib/api-client"
 import { clampFinancialYear, getFinancialYears } from "@/lib/utils"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import { AccountBalanceTracker } from "@/components/income/account-balance-tracker"
 
 export default function IncomePage() {
   const { user, loading: authLoading } = useAuth()
@@ -33,11 +34,20 @@ export default function IncomePage() {
   const queryClient = useQueryClient()
   const defaultYear = clampFinancialYear(new Date().getFullYear()).toString()
   const defaultMonth = (new Date().getMonth() + 1).toString()
-  const { data: incomes = [], isLoading: incomesLoading } = useQuery<Income[]>({
-    queryKey: ["incomes"],
-    queryFn: apiClient.getIncomes,
-    enabled: !authLoading && Boolean(user),
-  })
+  const months = [
+    { value: "1", label: "Enero" },
+    { value: "2", label: "Febrero" },
+    { value: "3", label: "Marzo" },
+    { value: "4", label: "Abril" },
+    { value: "5", label: "Mayo" },
+    { value: "6", label: "Junio" },
+    { value: "7", label: "Julio" },
+    { value: "8", label: "Agosto" },
+    { value: "9", label: "Septiembre" },
+    { value: "10", label: "Octubre" },
+    { value: "11", label: "Noviembre" },
+    { value: "12", label: "Diciembre" },
+  ]
   const [open, setOpen] = useState(false)
   const [filters, setFilters] = useState({
     year: defaultYear,
@@ -52,6 +62,23 @@ export default function IncomePage() {
   })
   const [deletingIncomeId, setDeletingIncomeId] = useState<string | null>(null)
 
+  const { data: incomes = [], isLoading: incomesLoading } = useQuery<Income[]>({
+    queryKey: ["incomes"],
+    queryFn: apiClient.getIncomes,
+    enabled: !authLoading && Boolean(user),
+  })
+  const { data: assets = [], isLoading: assetsLoading } = useQuery<Asset[]>({
+    queryKey: ["assets"],
+    queryFn: apiClient.getAssets,
+    enabled: !authLoading && Boolean(user),
+  })
+  const snapshotMonth = filters.year !== "all" && filters.month !== "all" ? `${filters.year}-${filters.month.padStart(2, "0")}` : undefined
+  const { data: accountSnapshots = [], isLoading: snapshotsLoading } = useQuery<AccountBalanceSnapshot[]>({
+    queryKey: ["account-balance-snapshots", snapshotMonth ?? "all"],
+    queryFn: () => apiClient.getAccountBalanceSnapshots(snapshotMonth),
+    enabled: !authLoading && Boolean(user),
+  })
+
   const createIncomeMutation = useMutation({
     mutationFn: apiClient.createIncome,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["incomes"] }),
@@ -60,6 +87,16 @@ export default function IncomePage() {
   const deleteIncomeMutation = useMutation({
     mutationFn: apiClient.deleteIncome,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["incomes"] }),
+  })
+
+  const createSnapshotMutation = useMutation({
+    mutationFn: apiClient.createAccountBalanceSnapshot,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["account-balance-snapshots"] }),
+  })
+
+  const deleteSnapshotMutation = useMutation({
+    mutationFn: apiClient.deleteAccountBalanceSnapshot,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["account-balance-snapshots"] }),
   })
 
   useEffect(() => {
@@ -113,7 +150,7 @@ export default function IncomePage() {
     }
   }
 
-  if (authLoading || incomesLoading) {
+  if (authLoading || incomesLoading || assetsLoading || snapshotsLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
@@ -130,22 +167,36 @@ export default function IncomePage() {
   const totalIncome = filteredIncomes.reduce((sum, i) => sum + i.amount, 0)
   const firstQuincenaTotal = filteredIncomes.filter((i) => i.payment_date === 15).reduce((sum, i) => sum + i.amount, 0)
   const secondQuincenaTotal = filteredIncomes.filter((i) => i.payment_date === 30).reduce((sum, i) => sum + i.amount, 0)
+  const selectedPeriodLabel =
+    filters.year !== "all" && filters.month !== "all"
+      ? `${months[Number(filters.month) - 1].label} ${filters.year}`
+      : "Periodo actual"
+  const canAddSnapshots = filters.year !== "all" && filters.month !== "all"
+
+  const handleCreateSnapshot = async (payload: {
+    label: string
+    amount: number
+    recorded_on: string
+    account_id?: string | null
+    notes?: string
+  }) => {
+    try {
+      await createSnapshotMutation.mutateAsync(payload)
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Ocurrió un error al guardar el saldo.")
+    }
+  }
+
+  const handleDeleteSnapshot = async (snapshotId: string) => {
+    if (!confirm("¿Deseas eliminar este registro de saldo?")) return
+    try {
+      await deleteSnapshotMutation.mutateAsync(snapshotId)
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Ocurrió un error al eliminar el saldo.")
+    }
+  }
 
   const years = getFinancialYears()
-  const months = [
-    { value: "1", label: "Enero" },
-    { value: "2", label: "Febrero" },
-    { value: "3", label: "Marzo" },
-    { value: "4", label: "Abril" },
-    { value: "5", label: "Mayo" },
-    { value: "6", label: "Junio" },
-    { value: "7", label: "Julio" },
-    { value: "8", label: "Agosto" },
-    { value: "9", label: "Septiembre" },
-    { value: "10", label: "Octubre" },
-    { value: "11", label: "Noviembre" },
-    { value: "12", label: "Diciembre" },
-  ]
 
   return (
     <DashboardLayout>
@@ -361,6 +412,18 @@ export default function IncomePage() {
             </CardContent>
           </Card>
         </div>
+
+        <AccountBalanceTracker
+          snapshots={accountSnapshots}
+          assets={assets}
+          totalIncome={totalIncome}
+          selectedPeriodLabel={selectedPeriodLabel}
+          onCreate={handleCreateSnapshot}
+          onDelete={handleDeleteSnapshot}
+          isSubmitting={createSnapshotMutation.isPending}
+          isDeleting={deleteSnapshotMutation.isPending}
+          canAdd={canAddSnapshots}
+        />
 
         {/* Income List */}
         <Card>

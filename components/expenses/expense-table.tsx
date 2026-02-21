@@ -5,6 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import type { Asset, Debt, Expense } from "@/lib/types"
+import { parseDateInput } from "@/lib/utils"
 import { Pencil, Trash2, CheckCircle2, AlertCircle, DollarSign } from "lucide-react"
 import {
   AlertDialog,
@@ -61,8 +62,8 @@ export function ExpenseTable({ expenses, debts, assets, onDelete, onEdit, onTogg
   }
 
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString)
-    return date.toLocaleDateString("es-CO", { year: "numeric", month: "short", day: "numeric" })
+    const date = parseDateInput(dateString)
+    return date ? date.toLocaleDateString("es-CO", { year: "numeric", month: "short", day: "numeric" }) : dateString
   }
 
   const getPeriodBadge = (period: string) => {
@@ -79,10 +80,12 @@ export function ExpenseTable({ expenses, debts, assets, onDelete, onEdit, onTogg
 
   const isOverdue = (expense: Expense) => {
     if (expense.is_paid) return false
-    const paymentDate = new Date(expense.payment_date)
+    const paymentDate = parseDateInput(expense.payment_date)
+    if (!paymentDate) return false
+    paymentDate.setHours(0, 0, 0, 0)
     const today = new Date()
     today.setHours(0, 0, 0, 0)
-    return paymentDate < today
+    return paymentDate.getTime() < today.getTime()
   }
 
   if (expenses.length === 0) {

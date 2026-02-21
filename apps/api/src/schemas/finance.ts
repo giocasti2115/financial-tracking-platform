@@ -80,6 +80,14 @@ export const assetUpdateSchema = z.object({
   current_balance: currencyValue.optional()
 });
 
+export const accountBalanceSnapshotInputSchema = z.object({
+  label: z.string().min(1).max(120),
+  amount: currencyValue,
+  recorded_on: dateStringSchema,
+  account_id: z.string().uuid().optional().nullable(),
+  notes: z.string().max(400).optional()
+});
+
 export const microExpenseInputSchema = z.object({
   description: z.string().trim().min(1),
   amount: currencyValue.positive(),
@@ -104,5 +112,6 @@ export type DebtPaymentInput = z.infer<typeof debtPaymentSchema>;
 export type DebtUpdateInput = z.infer<typeof debtUpdateSchema>;
 export type AssetInput = z.infer<typeof assetInputSchema>;
 export type AssetUpdateInput = z.infer<typeof assetUpdateSchema>;
+export type AccountBalanceSnapshotInput = z.infer<typeof accountBalanceSnapshotInputSchema>;
 export type MicroExpenseInput = z.infer<typeof microExpenseInputSchema>;
 export type MonthFilterInput = z.infer<typeof monthFilterSchema>;
