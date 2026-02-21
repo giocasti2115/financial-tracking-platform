@@ -59,8 +59,8 @@ export function MicroExpenseList({ expenses, onDelete, deletingId, isDisabled, c
         <CardTitle>Historial del mes</CardTitle>
       </CardHeader>
       <CardContent className="flex-1 p-0">
-        <ScrollArea className="h-full max-h-[65vh] min-h-[320px] lg:max-h-[560px] xl:max-h-[640px]">
-          <div className="divide-y">
+        <ScrollArea className="h-full min-h-[320px]">
+          <div className="divide-y pb-6">
             {grouped.map(([date, items]) => {
               const parsedDate = parseDateInput(date)
               return (

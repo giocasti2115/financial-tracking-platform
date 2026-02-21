@@ -8,6 +8,7 @@ import { errorHandler, notFoundHandler } from './middleware/error-handler.js';
 import { registerRoutes } from './routes/index.js';
 
 const app = express();
+app.set('etag', false);
 
 const normalizeOrigin = (origin: string) => origin.replace(/\/$/, '');
 
