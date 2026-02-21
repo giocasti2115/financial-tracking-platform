@@ -23,6 +23,8 @@ import { Trash2 } from "lucide-react"
 import type { AccountBalanceSnapshot, Asset } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
+const NO_ACCOUNT_VALUE = "__no-account__"
+
 const snapshotSchema = z.object({
   label: z.string().trim().min(2, "Describe la cuenta o libre"),
   amount: z
@@ -199,14 +201,17 @@ export function AccountBalanceTracker({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Cuenta (opcional)</FormLabel>
-                    <Select value={field.value ?? ""} onValueChange={(value) => field.onChange(value)}>
+                    <Select
+                      value={field.value && field.value.length > 0 ? field.value : NO_ACCOUNT_VALUE}
+                      onValueChange={(value) => field.onChange(value === NO_ACCOUNT_VALUE ? "" : value)}
+                    >
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Solo libre" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="">Sin cuenta</SelectItem>
+                        <SelectItem value={NO_ACCOUNT_VALUE}>Sin cuenta</SelectItem>
                         {assets.map((asset) => (
                           <SelectItem key={asset.id} value={asset.id}>
                             {asset.account_name}
