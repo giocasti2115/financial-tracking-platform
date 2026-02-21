@@ -54,7 +54,7 @@ export function MicroExpenseList({ expenses, onDelete, deletingId, isDisabled, c
   }
 
   return (
-    <Card className={cn("h-full", className)}>
+    <Card className={cn("h-full overflow-hidden", className)}>
       <CardHeader>
         <CardTitle>Historial del mes</CardTitle>
       </CardHeader>

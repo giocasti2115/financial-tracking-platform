@@ -21,7 +21,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Trash2 } from "lucide-react"
 import type { AccountBalanceSnapshot, Asset } from "@/lib/types"
-import { cn } from "@/lib/utils"
+import { cn, parseDateInput } from "@/lib/utils"
 
 const NO_ACCOUNT_VALUE = "__no-account__"
 
@@ -41,8 +41,10 @@ const snapshotSchema = z.object({
 export interface AccountBalanceTrackerProps {
   snapshots: AccountBalanceSnapshot[]
   assets: Asset[]
-  totalIncome: number
   selectedPeriodLabel: string
+  quincenaLabel: string
+  pendingAmount: number
+  defaultRecordDate?: string
   onCreate: (payload: { label: string; amount: number; recorded_on: string; account_id?: string | null; notes?: string }) => Promise<void>
   onDelete: (snapshotId: string) => Promise<void>
   isSubmitting: boolean
@@ -53,8 +55,10 @@ export interface AccountBalanceTrackerProps {
 export function AccountBalanceTracker({
   snapshots,
   assets,
-  totalIncome,
   selectedPeriodLabel,
+  quincenaLabel,
+  pendingAmount,
+  defaultRecordDate,
   onCreate,
   onDelete,
   isSubmitting,
@@ -62,39 +66,25 @@ export function AccountBalanceTracker({
   canAdd,
 }: AccountBalanceTrackerProps) {
   const totalRecorded = useMemo(() => snapshots.reduce((sum, item) => sum + item.amount, 0), [snapshots])
-  const difference = totalIncome - totalRecorded
+  const availableAfter = totalRecorded - pendingAmount
+  const formattedPending = pendingAmount.toLocaleString("es-CO")
+  const formattedRecorded = totalRecorded.toLocaleString("es-CO")
+  const formattedAvailable = Math.abs(availableAfter).toLocaleString("es-CO")
+  const effectiveRecordDate = defaultRecordDate ?? new Date().toISOString().slice(0, 10)
   const form = useForm<z.infer<typeof snapshotSchema>>({
     resolver: zodResolver(snapshotSchema),
     defaultValues: {
       label: "",
       amount: "",
-      recorded_on: selectedPeriodLabel === "Periodo actual" ? new Date().toISOString().slice(0, 10) : buildDateFromLabel(selectedPeriodLabel),
+      recorded_on: effectiveRecordDate,
       account_id: "",
       notes: "",
     },
   })
 
-  function buildDateFromLabel(label: string) {
-    const parts = label.split(" ")
-    if (parts.length >= 2) {
-      const monthName = parts[0]
-      const year = Number.parseInt(parts[1], 10)
-      const months = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
-      const monthIndex = months.findIndex((name) => name.toLowerCase() === monthName.toLowerCase())
-      if (!Number.isNaN(year) && monthIndex >= 0) {
-        return `${year}-${String(monthIndex + 1).padStart(2, "0")}-01`
-      }
-    }
-    return new Date().toISOString().slice(0, 10)
-  }
-
   useEffect(() => {
-    const nextDate =
-      selectedPeriodLabel === "Periodo actual"
-        ? new Date().toISOString().slice(0, 10)
-        : buildDateFromLabel(selectedPeriodLabel)
-    form.setValue("recorded_on", nextDate)
-  }, [selectedPeriodLabel, form])
+    form.setValue("recorded_on", effectiveRecordDate)
+  }, [effectiveRecordDate, form])
 
   const handleSubmit = form.handleSubmit(async (values) => {
     const amount = Number.parseFloat(values.amount)
@@ -129,28 +119,55 @@ export function AccountBalanceTracker({
     "Diciembre",
   ]
 
+  const getSnapshotMeta = (snapshot: AccountBalanceSnapshot) => {
+    const parsed = parseDateInput(snapshot.recorded_on ?? snapshot.created_at)
+    if (!parsed) {
+      return { dateLabel: snapshot.recorded_on ?? "—", periodLabel: "Sin fecha" }
+    }
+    const dateLabel = `${monthNames[parsed.getMonth()]} ${parsed.getFullYear()}`
+    const periodLabel = parsed.getDate() <= 15 ? "Primera quincena" : "Segunda quincena"
+    return { dateLabel, periodLabel }
+  }
+
   return (
     <Card>
-      <CardHeader className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+      <CardHeader className="space-y-4">
         <div>
-          <CardTitle>Saldos después de pagar</CardTitle>
-          <CardDescription>Controla cuánto queda libre en cada cuenta para {selectedPeriodLabel.toLowerCase()}</CardDescription>
+          <CardTitle>Saldos por quincena</CardTitle>
+          <CardDescription>
+            {selectedPeriodLabel}. Visualiza cuánto queda libre en cada cuenta después de contemplar los pagos
+            pendientes de la {quincenaLabel.toLowerCase()}.
+          </CardDescription>
         </div>
-        <div className="flex gap-3">
-          <div className="text-left">
-            <p className="text-xs uppercase text-muted-foreground">Existente</p>
-            <p className="text-xl font-semibold text-emerald-600">${totalRecorded.toLocaleString("es-CO")}</p>
+        <div className="grid gap-3 text-sm sm:grid-cols-3">
+          <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+            <p className="text-xs uppercase tracking-wide text-amber-700">Faltante por pagar</p>
+            <p className="text-lg font-semibold text-amber-900">{`$${formattedPending}`}</p>
           </div>
-          <div className="text-left">
-            <p className="text-xs uppercase text-muted-foreground">Faltante vs ingresos</p>
-            <p className={cn("text-xl font-semibold", difference <= 0 ? "text-emerald-600" : "text-amber-600")}>${Math.abs(difference).toLocaleString("es-CO")}</p>
+          <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3">
+            <p className="text-xs uppercase tracking-wide text-emerald-700">Existente en cuentas</p>
+            <p className="text-lg font-semibold text-emerald-900">{`$${formattedRecorded}`}</p>
+          </div>
+          <div
+            className={cn(
+              "rounded-lg border p-3",
+              availableAfter >= 0
+                ? "border-emerald-200 bg-emerald-50 text-emerald-900"
+                : "border-rose-200 bg-rose-50 text-rose-900",
+            )}
+          >
+            <p className="text-xs uppercase tracking-wide">Disponible después de faltantes</p>
+            <p className="text-lg font-semibold">
+              {availableAfter >= 0 ? "" : "-"}
+              {`$${formattedAvailable}`}
+            </p>
           </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-6">
         {!canAdd && (
           <p className="rounded-lg border border-dashed border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
-            Selecciona un año y mes específicos para registrar los saldos restantes.
+            Selecciona un año, mes y quincena específicos para registrar los saldos restantes.
           </p>
         )}
         {canAdd && (
@@ -251,7 +268,7 @@ export function AccountBalanceTracker({
               <TableRow>
                 <TableHead>Etiqueta</TableHead>
                 <TableHead>Cuenta</TableHead>
-                <TableHead>Fecha</TableHead>
+                <TableHead>Periodo</TableHead>
                 <TableHead className="text-right">Monto</TableHead>
                 <TableHead>Notas</TableHead>
                 <TableHead className="text-right">Acciones</TableHead>
@@ -265,21 +282,24 @@ export function AccountBalanceTracker({
                   </TableCell>
                 </TableRow>
               )}
-              {snapshots.map((snapshot) => (
-                <TableRow key={snapshot.id}>
-                  <TableCell className="font-medium">{snapshot.label}</TableCell>
-                  <TableCell>
-                    {snapshot.account_name ? (
-                      <Badge variant="outline">{snapshot.account_name}</Badge>
-                    ) : (
-                      <span className="text-xs text-muted-foreground">Libre</span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {snapshot.recorded_on
-                      ? `${monthNames[Number(snapshot.month) - 1]} ${snapshot.year}`
-                      : new Date(snapshot.created_at).toLocaleDateString("es-CO")}
-                  </TableCell>
+              {snapshots.map((snapshot) => {
+                const meta = getSnapshotMeta(snapshot)
+                return (
+                  <TableRow key={snapshot.id}>
+                    <TableCell className="font-medium">{snapshot.label}</TableCell>
+                    <TableCell>
+                      {snapshot.account_name ? (
+                        <Badge variant="outline">{snapshot.account_name}</Badge>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">Libre</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <div>
+                        <p className="font-medium leading-tight">{meta.dateLabel}</p>
+                        <p className="text-xs text-muted-foreground">{meta.periodLabel}</p>
+                      </div>
+                    </TableCell>
                   <TableCell className="text-right font-semibold">
                     ${snapshot.amount.toLocaleString("es-CO")}
                   </TableCell>
@@ -298,8 +318,9 @@ export function AccountBalanceTracker({
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </TableCell>
-                </TableRow>
-              ))}
+                  </TableRow>
+                )
+              })}
             </TableBody>
           </Table>
         </div>

@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation"
 import { useAuth } from "@/components/auth-provider"
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout"
 import { PageShell } from "@/components/dashboard/page-shell"
-import type { AccountBalanceSnapshot, Asset, Income } from "@/lib/types"
+import type { AccountBalanceSnapshot, Asset, Expense, Income } from "@/lib/types"
 import { DollarSign, Info, Loader2, Plus, Trash2 } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -24,9 +24,26 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { apiClient } from "@/lib/api-client"
-import { clampFinancialYear, getFinancialYears } from "@/lib/utils"
+import { clampFinancialYear, getFinancialYears, parseDateInput } from "@/lib/utils"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { AccountBalanceTracker } from "@/components/income/account-balance-tracker"
+
+type QuincenaValue = "primera" | "segunda"
+
+const QUINCENA_OPTIONS: { value: QuincenaValue; label: string }[] = [
+  { value: "primera", label: "Primera quincena (15)" },
+  { value: "segunda", label: "Segunda quincena (30)" },
+]
+
+const getQuincenaLabel = (value: QuincenaValue) => (value === "primera" ? "Primera quincena" : "Segunda quincena")
+
+const detectQuincenaFromDate = (input: string | null | undefined): QuincenaValue => {
+  const parsed = parseDateInput(input)
+  if (!parsed) {
+    return "primera"
+  }
+  return parsed.getDate() <= 15 ? "primera" : "segunda"
+}
 
 export default function IncomePage() {
   const { user, loading: authLoading } = useAuth()
@@ -34,6 +51,7 @@ export default function IncomePage() {
   const queryClient = useQueryClient()
   const defaultYear = clampFinancialYear(new Date().getFullYear()).toString()
   const defaultMonth = (new Date().getMonth() + 1).toString()
+  const defaultQuincena: QuincenaValue = new Date().getDate() <= 15 ? "primera" : "segunda"
   const months = [
     { value: "1", label: "Enero" },
     { value: "2", label: "Febrero" },
@@ -52,6 +70,7 @@ export default function IncomePage() {
   const [filters, setFilters] = useState({
     year: defaultYear,
     month: defaultMonth,
+    quincena: defaultQuincena,
   })
   const [formData, setFormData] = useState({
     person_name: "",
@@ -65,6 +84,11 @@ export default function IncomePage() {
   const { data: incomes = [], isLoading: incomesLoading } = useQuery<Income[]>({
     queryKey: ["incomes"],
     queryFn: apiClient.getIncomes,
+    enabled: !authLoading && Boolean(user),
+  })
+  const { data: expenses = [], isLoading: expensesLoading } = useQuery<Expense[]>({
+    queryKey: ["expenses"],
+    queryFn: apiClient.getExpenses,
     enabled: !authLoading && Boolean(user),
   })
   const { data: assets = [], isLoading: assetsLoading } = useQuery<Asset[]>({
@@ -150,7 +174,7 @@ export default function IncomePage() {
     }
   }
 
-  if (authLoading || incomesLoading || assetsLoading || snapshotsLoading) {
+  if (authLoading || incomesLoading || expensesLoading || assetsLoading || snapshotsLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
@@ -158,20 +182,63 @@ export default function IncomePage() {
     )
   }
 
-  const filteredIncomes = incomes.filter((income) => {
-    if (filters.year !== "all" && income.year !== Number.parseInt(filters.year)) return false
-    if (filters.month !== "all" && income.month !== Number.parseInt(filters.month)) return false
+  const selectedYearNumber = filters.year !== "all" ? Number(filters.year) : undefined
+  const selectedMonthNumber = filters.month !== "all" ? Number(filters.month) : undefined
+  const quincenaLabel = getQuincenaLabel(filters.quincena)
+
+  const monthFilteredIncomes = incomes.filter((income) => {
+    if (selectedYearNumber && income.year !== selectedYearNumber) return false
+    if (selectedMonthNumber && income.month !== selectedMonthNumber) return false
     return true
   })
 
-  const totalIncome = filteredIncomes.reduce((sum, i) => sum + i.amount, 0)
-  const firstQuincenaTotal = filteredIncomes.filter((i) => i.payment_date === 15).reduce((sum, i) => sum + i.amount, 0)
-  const secondQuincenaTotal = filteredIncomes.filter((i) => i.payment_date === 30).reduce((sum, i) => sum + i.amount, 0)
+  const filteredIncomes = monthFilteredIncomes.filter((income) =>
+    filters.quincena === "primera" ? income.payment_date === 15 : income.payment_date === 30,
+  )
+
+  const totalIncome = monthFilteredIncomes.reduce((sum, i) => sum + i.amount, 0)
+  const firstQuincenaTotal = monthFilteredIncomes
+    .filter((i) => i.payment_date === 15)
+    .reduce((sum, i) => sum + i.amount, 0)
+  const secondQuincenaTotal = monthFilteredIncomes
+    .filter((i) => i.payment_date === 30)
+    .reduce((sum, i) => sum + i.amount, 0)
+
   const selectedPeriodLabel =
-    filters.year !== "all" && filters.month !== "all"
-      ? `${months[Number(filters.month) - 1].label} ${filters.year}`
+    selectedYearNumber && selectedMonthNumber
+      ? `${quincenaLabel} de ${months[selectedMonthNumber - 1].label} ${filters.year}`
       : "Periodo actual"
-  const canAddSnapshots = filters.year !== "all" && filters.month !== "all"
+  const canAddSnapshots = Boolean(selectedYearNumber && selectedMonthNumber)
+  const defaultRecordDate = canAddSnapshots
+    ? `${filters.year}-${filters.month.padStart(2, "0")}-${filters.quincena === "primera" ? "05" : "20"}`
+    : undefined
+
+  const pendingAmount = canAddSnapshots
+    ? expenses
+        .filter((expense) => {
+          if (selectedYearNumber && expense.year !== selectedYearNumber) return false
+          if (selectedMonthNumber) {
+            const expenseDate = parseDateInput(expense.payment_date)
+            const expenseMonth = expenseDate ? expenseDate.getMonth() + 1 : undefined
+            if (expenseMonth !== selectedMonthNumber) return false
+          }
+          return filters.quincena === "primera"
+            ? expense.payment_period === "primera_quincena"
+            : expense.payment_period === "segunda_quincena"
+        })
+        .reduce((sum, expense) => {
+          const remaining = Math.max(expense.amount - (expense.amount_paid ?? 0), 0)
+          return sum + remaining
+        }, 0)
+    : 0
+
+  const periodSnapshots = canAddSnapshots
+    ? accountSnapshots.filter((snapshot) => {
+        if (selectedYearNumber && snapshot.year !== selectedYearNumber) return false
+        if (selectedMonthNumber && snapshot.month !== selectedMonthNumber) return false
+        return detectQuincenaFromDate(snapshot.recorded_on) === filters.quincena
+      })
+    : []
 
   const handleCreateSnapshot = async (payload: {
     label: string
@@ -345,7 +412,7 @@ export default function IncomePage() {
         {/* Filters */}
         <Card>
           <CardContent className="pt-6">
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-4 md:grid-cols-3">
               <div className="grid gap-2">
                 <Label htmlFor="year-filter">Año</Label>
                 <Select value={filters.year} onValueChange={(value) => setFilters({ ...filters, year: value })}>
@@ -374,6 +441,25 @@ export default function IncomePage() {
                     {months.map((month) => (
                       <SelectItem key={month.value} value={month.value}>
                         {month.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="quincena-filter">Quincena</Label>
+                <Select
+                  value={filters.quincena}
+                  onValueChange={(value) => setFilters({ ...filters, quincena: value as QuincenaValue })}
+                >
+                  <SelectTrigger id="quincena-filter">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {QUINCENA_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -414,10 +500,12 @@ export default function IncomePage() {
         </div>
 
         <AccountBalanceTracker
-          snapshots={accountSnapshots}
+          snapshots={periodSnapshots}
           assets={assets}
-          totalIncome={totalIncome}
           selectedPeriodLabel={selectedPeriodLabel}
+          quincenaLabel={quincenaLabel}
+          pendingAmount={pendingAmount}
+          defaultRecordDate={defaultRecordDate}
           onCreate={handleCreateSnapshot}
           onDelete={handleDeleteSnapshot}
           isSubmitting={createSnapshotMutation.isPending}
