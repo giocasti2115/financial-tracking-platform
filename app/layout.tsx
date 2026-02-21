@@ -1,5 +1,5 @@
 import type React from "react"
-import type { Metadata } from "next"
+import type { Metadata, Viewport } from "next"
 import { Geist, Geist_Mono } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 import "./globals.css"
@@ -18,7 +18,6 @@ export const metadata: Metadata = {
   description: "Aurea Finanzas centraliza ingresos, gastos, deudas y proyecciones para convertir cada quincena en una inversión informada.",
   generator: "v0.app",
   manifest: "/manifest.webmanifest",
-  themeColor: "#031024",
   icons: {
     icon: [
       { url: "/icon.svg", type: "image/svg+xml" },
@@ -28,6 +27,10 @@ export const metadata: Metadata = {
     shortcut: [{ url: "/icon-dark-32x32.png", type: "image/png" }],
     apple: [{ url: "/apple-icon.png", sizes: "180x180", type: "image/png" }],
   },
+}
+
+export const viewport: Viewport = {
+  themeColor: "#031024",
 }
 
 export default function RootLayout({

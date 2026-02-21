@@ -1,9 +1,8 @@
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 
-export function middleware(request: NextRequest) {
-  // This is a placeholder for authentication middleware
-  // Will be implemented with Supabase Auth when integrated
+export function proxy(request: NextRequest) {
+  // Placeholder for future auth guard that will run at the edge
   return NextResponse.next()
 }
 
