@@ -202,6 +202,35 @@ const ensureDebtFrequencyColumn = async () => {
 const normalizePaymentFrequency = (value: string | null | undefined): 'monthly' | 'biweekly' =>
   value === 'biweekly' ? 'biweekly' : 'monthly';
 
+let accountBalanceSnapshotsTableEnsured = false;
+const ensureAccountBalanceSnapshotsTable = async () => {
+  if (accountBalanceSnapshotsTableEnsured) {
+    return;
+  }
+
+  await query(`
+    CREATE TABLE IF NOT EXISTS account_balance_snapshots (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      account_id UUID REFERENCES accounts(id) ON DELETE SET NULL,
+      label TEXT NOT NULL,
+      amount DECIMAL(15, 2) NOT NULL CHECK (amount >= 0),
+      recorded_on DATE NOT NULL DEFAULT CURRENT_DATE,
+      month SMALLINT NOT NULL CHECK (month BETWEEN 1 AND 12),
+      year INTEGER NOT NULL,
+      notes TEXT,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    )
+  `);
+
+  await query(`
+    CREATE INDEX IF NOT EXISTS idx_account_balance_snapshots_period
+      ON account_balance_snapshots(user_id, year DESC, month DESC)
+  `);
+
+  accountBalanceSnapshotsTableEnsured = true;
+};
+
 const getPeriodicInterestRate = (interestRate: number | null | undefined, frequency: string | null | undefined) => {
   const normalizedRate = Number(interestRate ?? 0) / 100;
   return normalizePaymentFrequency(frequency) === 'biweekly' ? normalizedRate / 2 : normalizedRate;
@@ -825,6 +854,7 @@ export const FinanceService = {
   },
 
   listAccountBalanceSnapshots: async (userId: string, month?: string) => {
+    await ensureAccountBalanceSnapshotsTable();
     const params: unknown[] = [userId];
     let filterClause = '';
 
@@ -858,6 +888,7 @@ export const FinanceService = {
   },
 
   createAccountBalanceSnapshot: async (userId: string, payload: AccountBalanceSnapshotInput) => {
+    await ensureAccountBalanceSnapshotsTable();
     const recorded = new Date(payload.recorded_on);
     if (Number.isNaN(recorded.getTime())) {
       throw createError(400, 'Fecha inválida para el registro');
@@ -893,6 +924,7 @@ export const FinanceService = {
   },
 
   deleteAccountBalanceSnapshot: async (userId: string, snapshotId: string) => {
+    await ensureAccountBalanceSnapshotsTable();
     const result = await query('DELETE FROM account_balance_snapshots WHERE id = $1 AND user_id = $2', [
       snapshotId,
       userId

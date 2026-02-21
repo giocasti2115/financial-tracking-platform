@@ -42,7 +42,7 @@ export function MicroExpenseList({ expenses, onDelete, deletingId, isDisabled, c
 
   if (expenses.length === 0) {
     return (
-      <Card className="h-full">
+      <Card className={cn("flex h-full flex-col", className)}>
         <CardHeader>
           <CardTitle>Historial del mes</CardTitle>
         </CardHeader>
@@ -54,12 +54,12 @@ export function MicroExpenseList({ expenses, onDelete, deletingId, isDisabled, c
   }
 
   return (
-    <Card className={cn("h-full", className)}>
-      <CardHeader>
+    <Card className={cn("flex h-full flex-col overflow-hidden", className)}>
+      <CardHeader className="flex-none">
         <CardTitle>Historial del mes</CardTitle>
       </CardHeader>
-      <CardContent className="p-0">
-        <ScrollArea className="h-[480px] sm:h-[520px] lg:h-[600px] xl:h-[640px]">
+      <CardContent className="flex-1 p-0">
+        <ScrollArea className="h-full max-h-[65vh] min-h-[320px] lg:max-h-[560px] xl:max-h-[640px]">
           <div className="divide-y">
             {grouped.map(([date, items]) => {
               const parsedDate = parseDateInput(date)
@@ -68,32 +68,35 @@ export function MicroExpenseList({ expenses, onDelete, deletingId, isDisabled, c
                   <div className="bg-muted/40 px-4 py-2 text-sm font-medium capitalize">
                     {parsedDate ? dateFormatter.format(parsedDate) : date}
                   </div>
-                <ul className="px-4 py-2 space-y-3">
-                  {items.map((expense) => (
-                    <li
-                      key={expense.id}
-                      className="flex items-center justify-between rounded-xl border px-4 py-3 shadow-sm"
-                    >
-                      <div>
-                        <p className="font-medium text-foreground">{expense.description}</p>
-                        <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                          {expense.category && <Badge variant="secondary">{expense.category}</Badge>}
-                          <span>{currencyFormatter.format(expense.amount)}</span>
-                          {expense.notes && <span className="truncate max-w-[220px]">{expense.notes}</span>}
-                        </div>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className={cn("text-red-500 hover:text-red-400", isDisabled && "pointer-events-none opacity-50")}
-                        onClick={() => onDelete(expense)}
-                        disabled={isDisabled || deletingId === expense.id}
+                  <ul className="space-y-3 px-4 py-2">
+                    {items.map((expense) => (
+                      <li
+                        key={expense.id}
+                        className="flex items-center justify-between rounded-xl border px-4 py-3 shadow-sm"
                       >
-                        <Trash2 className={cn("h-4 w-4", deletingId === expense.id && "animate-pulse")} />
-                      </Button>
-                    </li>
-                  ))}
-                </ul>
+                        <div>
+                          <p className="font-medium text-foreground">{expense.description}</p>
+                          <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                            {expense.category && <Badge variant="secondary">{expense.category}</Badge>}
+                            <span>{currencyFormatter.format(expense.amount)}</span>
+                            {expense.notes && <span className="max-w-[220px] truncate">{expense.notes}</span>}
+                          </div>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className={cn(
+                            "text-red-500 hover:text-red-400",
+                            isDisabled && "pointer-events-none opacity-50"
+                          )}
+                          onClick={() => onDelete(expense)}
+                          disabled={isDisabled || deletingId === expense.id}
+                        >
+                          <Trash2 className={cn("h-4 w-4", deletingId === expense.id && "animate-pulse")} />
+                        </Button>
+                      </li>
+                    ))}
+                  </ul>
                 </Fragment>
               )
             })}
