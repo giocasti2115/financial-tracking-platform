@@ -23,16 +23,19 @@ const simulatorSchema = z.object({
     .trim()
     .min(1, "Ingresa el monto")
     .refine((value) => parseCurrencyInput(value) > 0, "El monto debe ser mayor a 0"),
-  annualRate: z
+  rateValue: z
     .string({ required_error: "Ingresa la tasa" })
     .trim()
     .refine((value) => !Number.isNaN(Number(value)), "Ingresa un número válido")
     .refine((value) => Number(value) >= 0, "La tasa no puede ser negativa"),
-  termMonths: z.coerce
-    .number({ required_error: "Ingresa el plazo" })
-    .int()
-    .min(1, "Mínimo 1 mes")
-    .max(360, "Máximo 360 meses"),
+  rateType: z.enum(["annual", "monthly"], { required_error: "Selecciona el tipo de tasa" }),
+  termMonths: z
+    .string({ required_error: "Ingresa el plazo" })
+    .trim()
+    .refine((value) => {
+      const parsed = Number.parseInt(value, 10)
+      return !Number.isNaN(parsed) && parsed >= 1 && parsed <= 360
+    }, "Ingresa entre 1 y 360 meses"),
   frequency: z.enum(["monthly", "biweekly"], { required_error: "Selecciona una frecuencia" }),
   extraPayment: z
     .string()
@@ -67,9 +70,10 @@ export function CreditSimulator() {
   const form = useForm<SimulatorFormValues>({
     resolver: zodResolver(simulatorSchema),
     defaultValues: {
-      amount: "25000000",
-      annualRate: "18",
-      termMonths: 24,
+      amount: "",
+      rateValue: "",
+      rateType: "annual",
+      termMonths: "",
       frequency: "monthly",
       extraPayment: "",
     },
@@ -117,13 +121,31 @@ export function CreditSimulator() {
     return new Date(result.payoffDate).toLocaleDateString("es-CO", { year: "numeric", month: "long" })
   }, [result])
 
+  const computeAnnualRate = (rateValue: string, rateType: "annual" | "monthly") => {
+    const numeric = Number(rateValue)
+    if (rateType === "monthly") {
+      const monthlyFraction = numeric / 100
+      const effectiveAnnual = Math.pow(1 + monthlyFraction, 12) - 1
+      return Number((effectiveAnnual * 100).toFixed(6))
+    }
+    return numeric
+  }
+
+  const parseTermMonths = (value: string) => {
+    const parsed = Number.parseInt(value, 10)
+    if (Number.isNaN(parsed)) return 1
+    return Math.min(360, Math.max(1, parsed))
+  }
+
   const handleSubmit = form.handleSubmit((values) => {
     const amount = parseCurrencyInput(values.amount)
+    const annualRate = computeAnnualRate(values.rateValue, values.rateType)
+    const termMonths = parseTermMonths(values.termMonths)
     const extraPayment = values.extraPayment ? parseCurrencyInput(values.extraPayment) : 0
     const simulation = projections.simulateCreditScenario({
       amount,
-      annualRate: Number(values.annualRate),
-      termMonths: values.termMonths,
+      annualRate,
+      termMonths,
       frequency: values.frequency,
       extraPayment,
     })
@@ -177,6 +199,8 @@ export function CreditSimulator() {
       return
     }
 
+    const annualRate = computeAnnualRate(submittedValues.rateValue, submittedValues.rateType)
+
     const payload = {
       debt_type: values.debtType.trim(),
       entity_name: values.entityName.trim(),
@@ -187,7 +211,7 @@ export function CreditSimulator() {
           ? result.periodicPayment
           : Number((result.periodicPayment * 2).toFixed(2)),
       payment_frequency: result.frequency,
-      interest_rate: Number(submittedValues.annualRate),
+      interest_rate: annualRate,
       start_date: new Date().toISOString().slice(0, 10),
       notes: values.notes,
     }
@@ -223,13 +247,35 @@ export function CreditSimulator() {
 
               <FormField
                 control={form.control}
-                name="annualRate"
+                name="rateValue"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Tasa efectiva anual (%)</FormLabel>
+                    <FormLabel>Tasa (% por periodo seleccionado)</FormLabel>
                     <FormControl>
                       <Input type="number" step="0.01" placeholder="18" {...field} />
                     </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="rateType"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Tipo de tasa</FormLabel>
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecciona" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="annual">Efectiva anual (EA)</SelectItem>
+                        <SelectItem value="monthly">Nominal mensual (NM)</SelectItem>
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -242,7 +288,7 @@ export function CreditSimulator() {
                   <FormItem>
                     <FormLabel>Plazo en meses</FormLabel>
                     <FormControl>
-                      <Input type="number" min={1} max={360} {...field} />
+                      <Input type="number" min={1} max={360} placeholder="24" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -370,6 +416,10 @@ export function CreditSimulator() {
                 Si deseas incorporar esta deuda en tus proyecciones reales, crea una deuda nueva desde el módulo principal y
                 replica los datos finales.
               </p>
+                <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-md p-3">
+                  Nota: esta es una simulación referencial. Las entidades financieras pueden incluir seguros, cargos
+                  administrativos u otros costos que aumentan la cuota final. Verifica siempre la oferta oficial antes de tomar la decisión.
+                </p>
             </CardContent>
           </Card>
         </div>
