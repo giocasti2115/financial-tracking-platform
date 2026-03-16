@@ -8,6 +8,7 @@ import { PageShell } from "@/components/dashboard/page-shell"
 import { DebtProjectionTable } from "@/components/projections/debt-projection-table"
 import { MonthlyProjectionChart } from "@/components/projections/monthly-projection-chart"
 import { ExpenseReport } from "@/components/projections/expense-report"
+import { CreditSimulator } from "@/components/projections/credit-simulator"
 import { projections } from "@/lib/projections"
 import type { Debt, Expense, Income } from "@/lib/types"
 import { Calendar, Info, Loader2, TrendingUp } from "lucide-react"
@@ -131,6 +132,7 @@ export default function ProjectionsPage() {
             <TabsTrigger value="debt-projections">Proyección de Deudas</TabsTrigger>
             <TabsTrigger value="monthly-projections">Proyección Mensual</TabsTrigger>
             <TabsTrigger value="expense-report">Reporte de Gastos</TabsTrigger>
+            <TabsTrigger value="credit-simulator">Simulador de Crédito</TabsTrigger>
           </TabsList>
 
           <TabsContent value="debt-projections" className="space-y-4">
@@ -288,6 +290,10 @@ export default function ProjectionsPage() {
             </Card>
 
             <ExpenseReport report={expenseReport} />
+          </TabsContent>
+
+          <TabsContent value="credit-simulator" className="space-y-4">
+            <CreditSimulator />
           </TabsContent>
         </Tabs>
       </PageShell>

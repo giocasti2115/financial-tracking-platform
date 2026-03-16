@@ -131,13 +131,25 @@ const ensureCurrencyExists = async (code: string) => {
   );
 };
 
-const formatCurrency = (value: number) => {
-  const sanitized = value.toString().replace(/\./g, '').replace(/,/g, '.')
-  const normalized = Number.parseFloat(sanitized)
-  if (Number.isNaN(normalized)) {
-    throw createError(400, 'Monto inválido')
+const formatCurrency = (value: string | number) => {
+  if (typeof value === 'number') {
+    if (!Number.isFinite(value)) {
+      throw createError(400, 'Monto inválido');
+    }
+    return Number(value.toFixed(2));
   }
-  return Number(normalized.toFixed(2))
+
+  const trimmed = value.trim();
+  if (!trimmed) {
+    throw createError(400, 'Monto inválido');
+  }
+
+  const sanitized = trimmed.replace(/\./g, '').replace(/,/g, '.');
+  const normalized = Number.parseFloat(sanitized);
+  if (Number.isNaN(normalized)) {
+    throw createError(400, 'Monto inválido');
+  }
+  return Number(normalized.toFixed(2));
 };
 
 let expenseDebtColumnEnsured = false;
