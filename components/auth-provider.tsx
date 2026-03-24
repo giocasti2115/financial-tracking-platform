@@ -27,9 +27,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter()
 
   useEffect(() => {
-    const currentUser = auth.getCurrentUser()
-    setUser(currentUser)
-    setLoading(false)
+    let isMounted = true
+
+    const hydrateSession = async () => {
+      const currentUser = auth.getCurrentUser()
+      if (!isMounted) return
+      setUser(currentUser)
+
+      const refreshToken = auth.getRefreshToken()
+      if (currentUser && refreshToken) {
+        try {
+          await auth.refreshAccessToken()
+        } catch {
+          auth.signOut()
+          setUser(null)
+          router.replace("/login")
+        }
+      } else if (!currentUser && refreshToken) {
+        auth.signOut()
+        setUser(null)
+        router.replace("/login")
+      }
+
+      if (isMounted) {
+        setLoading(false)
+      }
+    }
+
+    hydrateSession()
 
     const handleStorage = (event: StorageEvent) => {
       if (event.key === STORAGE_KEYS.USER) {
@@ -38,7 +63,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     window.addEventListener("storage", handleStorage)
-    return () => window.removeEventListener("storage", handleStorage)
+    return () => {
+      isMounted = false
+      window.removeEventListener("storage", handleStorage)
+    }
   }, [])
 
   const handleSignOut = () => {
