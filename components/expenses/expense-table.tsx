@@ -26,11 +26,10 @@ interface ExpenseTableProps {
   assets: Asset[]
   onDelete: (id: string) => void
   onEdit: (expense: Expense) => void
-  onTogglePayment: (id: string) => void
   onRegisterPayment: (expenseId: string, paymentAmount: number, notes?: string, assetId?: string) => Promise<void> | void
 }
 
-export function ExpenseTable({ expenses, debts, assets, onDelete, onEdit, onTogglePayment, onRegisterPayment }: ExpenseTableProps) {
+export function ExpenseTable({ expenses, debts, assets, onDelete, onEdit, onRegisterPayment }: ExpenseTableProps) {
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [editExpense, setEditExpense] = useState<Expense | null>(null)
   const [editDialogOpen, setEditDialogOpen] = useState(false)
@@ -128,22 +127,24 @@ export function ExpenseTable({ expenses, debts, assets, onDelete, onEdit, onTogg
               return (
                 <TableRow key={expense.id} className={rowClassName}>
                   <TableCell>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => onTogglePayment(expense.id)}
+                    <span
                       className={
-                        expense.is_paid ? "text-green-600 hover:text-green-700" : "text-gray-400 hover:text-gray-600"
+                        expense.is_paid
+                          ? "text-green-600"
+                          : isOverdue(expense)
+                            ? "text-red-600"
+                            : "text-gray-400"
                       }
+                      aria-label="Estado del gasto"
                     >
                       {expense.is_paid ? (
                         <CheckCircle2 className="h-5 w-5" />
                       ) : isOverdue(expense) ? (
-                        <AlertCircle className="h-5 w-5 text-red-600" />
+                        <AlertCircle className="h-5 w-5" />
                       ) : (
                         <CheckCircle2 className="h-5 w-5" />
                       )}
-                    </Button>
+                    </span>
                   </TableCell>
                   <TableCell className="font-medium">{expense.description}</TableCell>
                   <TableCell className="font-semibold">${expense.amount.toLocaleString("es-CO")}</TableCell>

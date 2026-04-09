@@ -186,20 +186,6 @@ export default function ExpensesPage() {
     })
   }
 
-  const handleTogglePayment = async (id: string) => {
-    const expense = expenses.find((item) => item.id === id)
-    if (!expense) return
-
-    const nextIsPaid = !expense.is_paid
-    await updateExpenseMutation.mutateAsync({
-      id,
-      data: {
-        is_paid: nextIsPaid,
-        paid_date: nextIsPaid ? new Date().toISOString() : null,
-      },
-    })
-  }
-
   const handleCloneExpenses = async (clonedExpenses: Omit<Expense, "id" | "created_at" | "updated_at">[]) => {
     try {
       await Promise.all(
@@ -422,7 +408,6 @@ export default function ExpensesPage() {
           assets={assets}
           onDelete={handleDeleteExpense}
           onEdit={handleEditExpense}
-          onTogglePayment={handleTogglePayment}
           onRegisterPayment={handleRegisterPayment}
         />
       </PageShell>
