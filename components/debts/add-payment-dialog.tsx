@@ -41,6 +41,11 @@ export function AddPaymentDialog({ debt, onSubmit }: AddPaymentDialogProps) {
   const today = useMemo(() => new Date().toISOString().split("T")[0], [])
   const currentBalance = debt.current_balance
   const frequencyLabel = debt.payment_frequency === "biweekly" ? "Quincenal" : "Mensual"
+  const payoffInterestEstimate = useMemo(() => {
+    const breakdown = calculations.calculateDebtPaymentBreakdown(debt, currentBalance)
+    return breakdown?.interest_component ?? 0
+  }, [debt, currentBalance])
+  const payoffAmount = useMemo(() => Math.max(currentBalance + payoffInterestEstimate, currentBalance), [currentBalance, payoffInterestEstimate])
 
   const formSchema = z.object({
     amount: z
@@ -50,8 +55,8 @@ export function AddPaymentDialog({ debt, onSubmit }: AddPaymentDialogProps) {
       .refine((value) => !Number.isNaN(parseCurrencyInput(value)), "Monto inválido")
       .refine((value) => parseCurrencyInput(value) > 0, "El monto debe ser mayor a 0")
       .refine(
-        (value) => parseCurrencyInput(value) <= currentBalance + 1e-6,
-        `El monto no puede superar $${currentBalance.toLocaleString("es-CO")}`,
+        (value) => parseCurrencyInput(value) <= payoffAmount + 1e-6,
+        `El monto no puede superar $${payoffAmount.toLocaleString("es-CO")}`,
       ),
     payment_date: z
       .string({ required_error: "Selecciona la fecha" })
@@ -127,34 +132,90 @@ export function AddPaymentDialog({ debt, onSubmit }: AddPaymentDialogProps) {
             <FormField
               control={form.control}
               name="amount"
-              render={({ field }) => {
-                const previewAmount = parseCurrencyInput(field.value)
-                return (
-                  <FormItem className="grid gap-2">
-                    <FormLabel>Monto del Pago *</FormLabel>
-                    <FormControl>
-                      <div className="relative">
-                        <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input
-                          id="amount"
-                          type="text"
-                          inputMode="decimal"
-                          placeholder="0.00"
-                          className="pl-9"
-                          {...field}
-                        />
+                render={({ field }) => {
+                  const previewAmount = parseCurrencyInput(field.value)
+                  const previewBalance = paymentPreview?.next_balance
+                  const paymentOnlyInterest =
+                    paymentPreview && paymentPreview.principal_component <= 0 && previewAmount > 0
+
+                  return (
+                    <FormItem className="grid gap-2">
+                      <FormLabel>Monto del Pago *</FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                          <Input
+                            id="amount"
+                            type="text"
+                            inputMode="decimal"
+                            placeholder="0.00"
+                            className="pl-9"
+                            {...field}
+                          />
+                        </div>
+                      </FormControl>
+                      {field.value && Number.isFinite(previewAmount) && (
+                        <div className="space-y-1">
+                          {typeof previewBalance === "number" && (
+                            <p className="text-xs text-muted-foreground">
+                              Nuevo saldo: ${previewBalance.toLocaleString("es-CO")}
+                            </p>
+                          )}
+                          {paymentOnlyInterest && (
+                            <p className="text-xs text-amber-700">
+                              El pago solo cubre intereses, por lo que el saldo no disminuye.
+                            </p>
+                          )}
+                        </div>
+                      )}
+                      <div className="flex flex-wrap gap-2 text-xs">
+                        {debt.monthly_payment && debt.monthly_payment > 0 && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() =>
+                              form.setValue("amount", debt.monthly_payment?.toFixed(2) ?? "", {
+                                shouldValidate: true,
+                                shouldDirty: true,
+                              })
+                            }
+                          >
+                            Cuota sugerida
+                          </Button>
+                        )}
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() =>
+                            form.setValue("amount", payoffAmount.toFixed(2), {
+                              shouldValidate: true,
+                              shouldDirty: true,
+                            })
+                          }
+                        >
+                          Saldo total
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() =>
+                            form.setValue("amount", "", {
+                              shouldValidate: true,
+                              shouldDirty: true,
+                            })
+                          }
+                        >
+                          Otro valor
+                        </Button>
                       </div>
-                    </FormControl>
-                    {field.value && Number.isFinite(previewAmount) && (
-                      <p className="text-xs text-muted-foreground">
-                        Nuevo saldo: ${Math.max(currentBalance - previewAmount, 0).toLocaleString("es-CO")}
-                      </p>
-                    )}
-                    <FormMessage />
-                  </FormItem>
-                )
-              }}
-            />
+                      <FormMessage />
+                    </FormItem>
+                  )
+                }}
+              />
 
             {paymentPreview && (
               <div className="rounded-lg border bg-muted/30 p-3 text-xs text-muted-foreground">
