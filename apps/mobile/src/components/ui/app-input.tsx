@@ -8,13 +8,15 @@ export function AppInput({
   secureTextEntry,
   keyboardType,
   autoCapitalize,
+  placeholder,
 }: {
   label: string
   value: string
   onChangeText: (value: string) => void
   secureTextEntry?: boolean
-  keyboardType?: "default" | "email-address"
+  keyboardType?: "default" | "email-address" | "numeric" | "number-pad"
   autoCapitalize?: "none" | "sentences" | "words" | "characters"
+  placeholder?: string
 }) {
   return (
     <View style={styles.container}>
@@ -26,6 +28,7 @@ export function AppInput({
         secureTextEntry={secureTextEntry}
         keyboardType={keyboardType}
         autoCapitalize={autoCapitalize}
+        placeholder={placeholder}
         placeholderTextColor={colors.mutedText}
       />
     </View>

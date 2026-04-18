@@ -1,31 +1,12 @@
-import { ApiError, apiRequest } from "@/lib/api-client"
+import { authRequest, type AuthRequestOptions } from "@/lib/auth-request"
 import type { Asset, DashboardBundle, Debt, Expense, Income } from "@/lib/types"
 
-type AuthOptions = {
-  accessToken: string | null
-  refreshSession: () => Promise<string | null>
-}
-
-const requestWithRefresh = async <T>(path: string, auth: AuthOptions): Promise<T> => {
-  try {
-    return await apiRequest<T>(path, { token: auth.accessToken })
-  } catch (error) {
-    if (error instanceof ApiError && error.status === 401) {
-      const nextToken = await auth.refreshSession()
-      if (nextToken) {
-        return apiRequest<T>(path, { token: nextToken })
-      }
-    }
-    throw error
-  }
-}
-
-export const fetchDashboardBundle = async (auth: AuthOptions): Promise<DashboardBundle> => {
+export const fetchDashboardBundle = async (auth: AuthRequestOptions): Promise<DashboardBundle> => {
   const [incomes, expenses, debts, assets] = await Promise.all([
-    requestWithRefresh<Income[]>("/incomes", auth),
-    requestWithRefresh<Expense[]>("/expenses", auth),
-    requestWithRefresh<Debt[]>("/debts", auth),
-    requestWithRefresh<Asset[]>("/assets", auth),
+    authRequest<Income[]>("/incomes", auth),
+    authRequest<Expense[]>("/expenses", auth),
+    authRequest<Debt[]>("/debts", auth),
+    authRequest<Asset[]>("/assets", auth),
   ])
 
   return { incomes, expenses, debts, assets }
