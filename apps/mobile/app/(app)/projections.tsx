@@ -1,10 +1,13 @@
 import { useMemo, useState } from "react"
-import { Pressable, StyleSheet, Text, View } from "react-native"
+import { Pressable, Share, StyleSheet, Text, View } from "react-native"
 import { AppScreen } from "@/components/ui/app-screen"
 import { AppInput } from "@/components/ui/app-input"
 import { PrimaryButton } from "@/components/ui/primary-button"
 import { colors } from "@/theme/colors"
 import { projections, type CreditSimulationResult } from "@/lib/projections"
+import { useAuth } from "@/providers/auth-provider"
+import { debtsApi } from "@/lib/debts"
+import { ApiError } from "@/lib/api-client"
 
 const currencyFormatter = new Intl.NumberFormat("es-CO", {
   style: "currency",
@@ -15,12 +18,19 @@ const currencyFormatter = new Intl.NumberFormat("es-CO", {
 const parseCurrencyInput = (value: string) => Number(value.replace(/[^\d.,-]/g, "").replace(/\./g, "").replace(",", "."))
 
 export default function ProjectionsScreen() {
+  const { accessToken, refreshSession } = useAuth()
   const [amount, setAmount] = useState("")
   const [rateValue, setRateValue] = useState("")
   const [termMonths, setTermMonths] = useState("")
   const [extraPayment, setExtraPayment] = useState("")
   const [frequency, setFrequency] = useState<"monthly" | "biweekly">("monthly")
+  const [entityName, setEntityName] = useState("Nuevo crédito")
+  const [debtType, setDebtType] = useState("crédito personal")
+  const [notes, setNotes] = useState("")
+  const [savingDebt, setSavingDebt] = useState(false)
+  const [exportingCsv, setExportingCsv] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState<string | null>(null)
   const [result, setResult] = useState<CreditSimulationResult | null>(null)
 
   const payoffDate = useMemo(() => {
@@ -48,6 +58,7 @@ export default function ProjectionsScreen() {
     }
 
     setError(null)
+    setSuccess(null)
     const simulation = projections.simulateCreditScenario({
       amount: principal,
       annualRate,
@@ -56,6 +67,89 @@ export default function ProjectionsScreen() {
       extraPayment: Number.isNaN(extra) ? 0 : Math.max(0, extra),
     })
     setResult(simulation)
+  }
+
+  const handleRegisterDebt = async () => {
+    if (!result) {
+      setError("Primero debes ejecutar una simulación.")
+      return
+    }
+
+    const originalAmount = parseCurrencyInput(amount)
+    const annualRate = Number(rateValue)
+    if (Number.isNaN(originalAmount) || originalAmount <= 0) {
+      setError("El monto simulado es inválido para registrar la deuda.")
+      return
+    }
+
+    if (!entityName.trim() || !debtType.trim()) {
+      setError("Completa entidad y tipo de deuda para guardar.")
+      return
+    }
+
+    setSavingDebt(true)
+    setError(null)
+    setSuccess(null)
+    try {
+      await debtsApi.create(
+        { accessToken, refreshSession },
+        {
+          entity_name: entityName.trim(),
+          debt_type: debtType.trim(),
+          original_amount: originalAmount,
+          current_balance: originalAmount,
+          monthly_payment:
+            result.frequency === "monthly"
+              ? result.periodicPayment
+              : Number((result.periodicPayment * 2).toFixed(2)),
+          payment_frequency: result.frequency,
+          interest_rate: Number.isNaN(annualRate) ? undefined : annualRate,
+          start_date: new Date().toISOString().slice(0, 10),
+          status: "active",
+          notes: notes.trim() || undefined,
+        },
+      )
+      setSuccess("Deuda registrada correctamente desde la simulación.")
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "No pudimos registrar la deuda simulada.")
+    } finally {
+      setSavingDebt(false)
+    }
+  }
+
+  const handleExportCsv = async () => {
+    if (!result || result.schedule.length === 0) {
+      setError("No hay simulación para exportar.")
+      return
+    }
+
+    setExportingCsv(true)
+    setError(null)
+    setSuccess(null)
+    try {
+      const header = ["Periodo", "Fecha", "Pago", "Interés", "Capital", "Saldo"]
+      const rows = result.schedule.map((entry) => [
+        entry.period.toString(),
+        new Date(entry.date).toLocaleDateString("es-CO"),
+        entry.payment.toFixed(2),
+        entry.interest.toFixed(2),
+        entry.principal.toFixed(2),
+        entry.balance.toFixed(2),
+      ])
+      const csv = [header, ...rows]
+        .map((columns) => columns.map((col) => `"${String(col).replace(/"/g, '""')}"`).join(","))
+        .join("\n")
+
+      await Share.share({
+        title: "Simulación de crédito",
+        message: `Simulación de crédito\n\n${csv}`,
+      })
+      setSuccess("CSV generado y listo para compartir.")
+    } catch {
+      setError("No pudimos exportar la simulación en este momento.")
+    } finally {
+      setExportingCsv(false)
+    }
   }
 
   return (
@@ -110,6 +204,12 @@ export default function ProjectionsScreen() {
           </View>
         ) : null}
 
+        {success ? (
+          <View style={styles.successCard}>
+            <Text style={styles.successText}>{success}</Text>
+          </View>
+        ) : null}
+
         <PrimaryButton label="Simular" onPress={handleSimulate} />
       </View>
 
@@ -143,11 +243,23 @@ export default function ProjectionsScreen() {
               <Text style={styles.periodText}>Saldo: {currencyFormatter.format(entry.balance)}</Text>
             </View>
           ))}
+
+          <View style={styles.actionsRow}>
+            <PrimaryButton label="Exportar CSV" onPress={() => void handleExportCsv()} loading={exportingCsv} />
+          </View>
+
+          <View style={styles.registerCard}>
+            <Text style={styles.subtitle}>Registrar deuda simulada</Text>
+            <AppInput label="Entidad" value={entityName} onChangeText={setEntityName} placeholder="Ej: Banco XYZ" />
+            <AppInput label="Tipo de deuda" value={debtType} onChangeText={setDebtType} placeholder="Ej: Crédito personal" />
+            <AppInput label="Notas (opcional)" value={notes} onChangeText={setNotes} placeholder="Observaciones" />
+            <PrimaryButton label="Guardar deuda" onPress={() => void handleRegisterDebt()} loading={savingDebt} />
+          </View>
         </View>
       ) : null}
 
       <View style={styles.cardMuted}>
-        <Text style={styles.text}>Siguiente paso: registrar deuda simulada desde móvil (Sprint pendiente).</Text>
+        <Text style={styles.text}>Sprint 1.5: registro de deuda y exportación CSV habilitados.</Text>
       </View>
     </AppScreen>
   )
@@ -213,6 +325,17 @@ const styles = StyleSheet.create({
     color: colors.danger,
     fontSize: 13,
   },
+  successCard: {
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#cce7cf",
+    backgroundColor: "#eef9ef",
+    padding: 10,
+  },
+  successText: {
+    color: "#1e6f2b",
+    fontSize: 13,
+  },
   resultsCard: {
     borderRadius: 14,
     borderWidth: 1,
@@ -257,5 +380,17 @@ const styles = StyleSheet.create({
   periodText: {
     color: colors.navy700,
     fontSize: 12,
+  },
+  actionsRow: {
+    marginTop: 6,
+  },
+  registerCard: {
+    marginTop: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.cream,
+    padding: 10,
+    gap: 10,
   },
 })
