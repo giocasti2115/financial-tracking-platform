@@ -9,6 +9,7 @@ type AuthState = {
   loading: boolean
   signIn: (email: string, password: string) => Promise<void>
   signUp: (name: string, email: string, password: string) => Promise<void>
+  refreshSession: () => Promise<string | null>
   signOut: () => Promise<void>
 }
 
@@ -83,6 +84,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await persistSession(data)
   }, [])
 
+  const refreshSession = useCallback(async () => {
+    if (!refreshToken) {
+      await clearSession()
+      setUser(null)
+      setAccessToken(null)
+      setRefreshToken(null)
+      return null
+    }
+
+    try {
+      const data = await authApi.refresh(refreshToken)
+      setAccessToken(data.accessToken)
+      await SecureStore.setItemAsync(STORAGE_KEYS.accessToken, data.accessToken)
+      return data.accessToken
+    } catch {
+      await clearSession()
+      setUser(null)
+      setAccessToken(null)
+      setRefreshToken(null)
+      return null
+    }
+  }, [refreshToken])
+
   const signOut = useCallback(async () => {
     setUser(null)
     setAccessToken(null)
@@ -98,9 +122,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       loading,
       signIn,
       signUp,
+      refreshSession,
       signOut,
     }),
-    [user, accessToken, refreshToken, loading, signIn, signUp, signOut],
+    [user, accessToken, refreshToken, loading, signIn, signUp, refreshSession, signOut],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
