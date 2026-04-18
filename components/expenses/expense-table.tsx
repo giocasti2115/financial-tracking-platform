@@ -5,8 +5,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import type { Asset, Debt, Expense } from "@/lib/types"
-import { parseDateInput } from "@/lib/utils"
-import { Pencil, Trash2, CheckCircle2, AlertCircle, DollarSign } from "lucide-react"
+import { cn, parseDateInput } from "@/lib/utils"
+import { Pencil, Trash2, CheckCircle2, AlertCircle, DollarSign, Clock } from "lucide-react"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -17,6 +17,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { Card, CardContent } from "@/components/ui/card"
 import { EditExpenseDialog } from "./edit-expense-dialog"
 import { RegisterPaymentDialog } from "./register-payment-dialog"
 
@@ -98,7 +99,104 @@ export function ExpenseTable({ expenses, debts, assets, onDelete, onEdit, onRegi
 
   return (
     <>
-      <div className="rounded-lg border overflow-x-auto">
+      {/* ── Mobile card list ── */}
+      <div className="md:hidden space-y-3">
+        {expenses.map((expense) => {
+          const amountPaid = expense.amount_paid ?? 0
+          const remaining = expense.amount - amountPaid
+          const locked = isExpenseLocked(expense)
+          const overdue = isOverdue(expense)
+          return (
+            <Card
+              key={expense.id}
+              className={cn(
+                "overflow-hidden",
+                expense.is_paid && "border-yellow-200 bg-yellow-50",
+                overdue && !expense.is_paid && "border-red-200 bg-red-50",
+              )}
+            >
+              <CardContent className="p-4 space-y-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium truncate">{expense.description}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{formatDate(expense.payment_date)}</p>
+                  </div>
+                  <div className="text-right flex-shrink-0">
+                    <p className="font-semibold tabular-nums">${expense.amount.toLocaleString("es-CO")}</p>
+                    <div className="mt-1">{getPeriodBadge(expense.payment_period)}</div>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                  {expense.is_paid ? (
+                    <span className="flex items-center gap-1 text-emerald-600 font-medium">
+                      <CheckCircle2 className="h-3.5 w-3.5" /> Pagado
+                    </span>
+                  ) : overdue ? (
+                    <span className="flex items-center gap-1 text-red-600 font-medium">
+                      <AlertCircle className="h-3.5 w-3.5" /> Vencido
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-1 text-slate-500">
+                      <Clock className="h-3.5 w-3.5" /> Pendiente
+                    </span>
+                  )}
+                  {amountPaid > 0 && (
+                    <span className="text-emerald-600">Pagado: ${amountPaid.toLocaleString("es-CO")}</span>
+                  )}
+                  {remaining > 0 && (
+                    <span className="text-red-600">Debe: ${remaining.toLocaleString("es-CO")}</span>
+                  )}
+                  {expense.debt_id && (
+                    <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200 text-[10px]">
+                      {debtMap.get(expense.debt_id)?.entity_name ?? "Deuda"}
+                    </Badge>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-2 pt-1 border-t border-border/40">
+                  {!expense.is_paid && (
+                    <Button
+                      size="sm"
+                      className="h-8 bg-emerald-600 hover:bg-emerald-700 text-white"
+                      onClick={() => {
+                        setPaymentContext({ expense, debt: expense.debt_id ? debtMap.get(expense.debt_id) : undefined })
+                        setPaymentDialogOpen(true)
+                      }}
+                    >
+                      <DollarSign className="h-3.5 w-3.5 mr-1" />
+                      Pagar
+                    </Button>
+                  )}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 ml-auto"
+                    onClick={() => handleEdit(expense)}
+                    disabled={locked}
+                    title={locked ? "Este gasto ya tiene pagos registrados" : undefined}
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
+                    onClick={() => { if (!locked) setDeleteId(expense.id) }}
+                    disabled={locked}
+                    title={locked ? "No puedes eliminar un gasto con pagos" : undefined}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )
+        })}
+      </div>
+
+      {/* ── Desktop table ── */}
+      <div className="hidden md:block rounded-lg border overflow-x-auto">
         <Table className="min-w-[840px]">
           <TableHeader>
             <TableRow>

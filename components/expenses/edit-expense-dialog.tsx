@@ -165,7 +165,7 @@ export function EditExpenseDialog({ expense, open, onOpenChange, onSave, debts }
               )}
             />
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
                 name="payment_period"
@@ -203,7 +203,7 @@ export function EditExpenseDialog({ expense, open, onOpenChange, onSave, debts }
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
                 name="semester"
@@ -282,13 +282,13 @@ export function EditExpenseDialog({ expense, open, onOpenChange, onSave, debts }
             />
           </div>
 
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            <DialogFooter className="flex-col-reverse sm:flex-row gap-2">
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="w-full sm:w-auto">
                 Cancelar
               </Button>
               <Button
                 type="submit"
-                className="bg-emerald-600 hover:bg-emerald-700"
+                className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700"
                 disabled={form.formState.isSubmitting}
               >
                 Guardar Cambios

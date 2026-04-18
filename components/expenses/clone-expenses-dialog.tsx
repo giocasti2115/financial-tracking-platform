@@ -257,7 +257,7 @@ export function CloneExpensesDialog({ expenses, onClone }: CloneExpensesDialogPr
           Clonar Gastos
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Clonar Gastos de un Mes</DialogTitle>
           <DialogDescription>Copia todos los gastos de un mes a otro mes automáticamente</DialogDescription>
@@ -266,7 +266,7 @@ export function CloneExpensesDialog({ expenses, onClone }: CloneExpensesDialogPr
         <div className="grid gap-6 py-4">
           <div className="space-y-4">
             <h4 className="font-medium text-sm">Mes Origen</h4>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="grid gap-2">
                 <Label htmlFor="source-month">Mes</Label>
                 <Select value={sourceMonth ?? undefined} onValueChange={setSourceMonth}>
@@ -299,7 +299,7 @@ export function CloneExpensesDialog({ expenses, onClone }: CloneExpensesDialogPr
                 </Select>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="grid gap-2">
                 <Label htmlFor="source-semester">Semestre</Label>
                 <Select value={sourceSemester} onValueChange={handleSourceSemesterChange}>
@@ -399,7 +399,7 @@ export function CloneExpensesDialog({ expenses, onClone }: CloneExpensesDialogPr
                 })
               )}
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="grid gap-2">
                 <Label htmlFor="target-semester">Semestre destino</Label>
                 <Select value={targetSemester} onValueChange={handleTargetSemesterChange}>
@@ -430,11 +430,11 @@ export function CloneExpensesDialog({ expenses, onClone }: CloneExpensesDialogPr
           </div>
         </div>
 
-        <DialogFooter>
-          <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+        <DialogFooter className="flex-col-reverse sm:flex-row gap-2">
+          <Button type="button" variant="outline" onClick={() => setOpen(false)} className="w-full sm:w-auto">
             Cancelar
           </Button>
-          <Button onClick={handleClone} className="bg-emerald-600 hover:bg-emerald-700" disabled={isCloning}>
+          <Button onClick={handleClone} className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700" disabled={isCloning}>
             Clonar Gastos
           </Button>
         </DialogFooter>

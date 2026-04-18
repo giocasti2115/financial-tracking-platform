@@ -331,15 +331,15 @@ export function CreditSimulator() {
                 )}
               />
 
-              <div className="flex items-end gap-3">
-                <Button type="submit" className="w-full md:w-auto">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-end gap-3 md:col-span-2">
+                <Button type="submit" className="w-full sm:w-auto">
                   Simular
                 </Button>
                 <Button
                   type="button"
                   variant="ghost"
                   onClick={() => form.reset(form.formState.defaultValues)}
-                  className="hidden md:inline-flex"
+                  className="w-full sm:w-auto"
                 >
                   Limpiar
                 </Button>
@@ -365,7 +365,7 @@ export function CreditSimulator() {
                   {currencyFormatter.format(result.periodicPayment)}
                 </p>
               </div>
-              <div className="grid gap-3 md:grid-cols-2">
+                <div className="grid gap-3 sm:grid-cols-2">
                 <div>
                   <p className="text-sm text-muted-foreground">Total pagado</p>
                   <p className="text-lg font-semibold">{currencyFormatter.format(result.totalPaid)}</p>
@@ -485,14 +485,15 @@ export function CreditSimulator() {
                   )}
                 />
 
-                <div className="md:col-span-2 flex flex-wrap gap-3">
-                  <Button type="submit" disabled={createDebtMutation.isPending}>
+                <div className="md:col-span-2 flex flex-col sm:flex-row gap-3">
+                  <Button type="submit" disabled={createDebtMutation.isPending} className="w-full sm:w-auto">
                     {createDebtMutation.isPending ? "Guardando..." : "Registrar deuda"}
                   </Button>
                   <Button
                     type="button"
                     variant="ghost"
                     onClick={() => registerDebtForm.reset({ entityName: "", debtType: "", notes: "" })}
+                    className="w-full sm:w-auto"
                   >
                     Limpiar
                   </Button>
@@ -511,7 +512,7 @@ export function CreditSimulator() {
           </CardHeader>
           <CardContent>
             <ScrollArea className="h-[420px]">
-              <table className="w-full text-sm">
+              <table className="w-full min-w-[680px] text-sm">
                 <thead className="sticky top-0 bg-white">
                   <tr className="text-left text-muted-foreground">
                     <th className="py-2 pr-3 font-medium">Periodo</th>

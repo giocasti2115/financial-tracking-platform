@@ -275,13 +275,13 @@ export function AddPaymentDialog({ debt, onSubmit }: AddPaymentDialogProps) {
             />
           </div>
 
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+            <DialogFooter className="flex-col-reverse sm:flex-row gap-2">
+              <Button type="button" variant="outline" onClick={() => setOpen(false)} className="w-full sm:w-auto">
                 Cancelar
               </Button>
               <Button
                 type="submit"
-                className="bg-emerald-600 hover:bg-emerald-700"
+                className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700"
                 disabled={form.formState.isSubmitting}
               >
                 {form.formState.isSubmitting ? (

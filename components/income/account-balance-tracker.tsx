@@ -322,8 +322,8 @@ export function AccountBalanceTracker({
           </Form>
         )}
 
-        <div className="rounded-lg border">
-          <Table>
+        <div className="rounded-lg border overflow-x-auto">
+          <Table className="min-w-[760px]">
             <TableHeader>
               <TableRow>
                 <TableHead>Etiqueta</TableHead>

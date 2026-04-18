@@ -103,7 +103,7 @@ export function DebtCard({ debt, onRegisterPayment, onDelete, onUpdate, isDeleti
         </div>
 
         {/* Payment Info */}
-        <div className="grid grid-cols-2 gap-4 pt-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
           {debt.monthly_payment && (
             <div className="space-y-1">
               <div className="flex items-center gap-1 text-xs text-muted-foreground">

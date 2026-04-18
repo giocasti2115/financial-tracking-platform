@@ -87,7 +87,7 @@ export default function ProjectionsPage() {
         {/* Header */}
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <h1 className="text-3xl font-bold tracking-tight">Proyecciones y Reportes</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Proyecciones y Reportes</h1>
             <Tooltip>
               <TooltipTrigger
                 type="button"
@@ -128,7 +128,7 @@ export default function ProjectionsPage() {
 
         {/* Tabs */}
         <Tabs defaultValue="debt-projections" className="space-y-4">
-          <TabsList>
+          <TabsList className="w-full overflow-x-auto whitespace-nowrap justify-start">
             <TabsTrigger value="debt-projections">Proyección de Deudas</TabsTrigger>
             <TabsTrigger value="monthly-projections">Proyección Mensual</TabsTrigger>
             <TabsTrigger value="expense-report">Reporte de Gastos</TabsTrigger>
@@ -138,12 +138,12 @@ export default function ProjectionsPage() {
           <TabsContent value="debt-projections" className="space-y-4">
             <Card>
               <CardHeader>
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <CardTitle>Proyección de Pagos de Deudas</CardTitle>
                     <CardDescription>Calendario de pagos proyectados para los próximos meses</CardDescription>
                   </div>
-                  <div className="w-32">
+                  <div className="w-full sm:w-32">
                     <Select
                       value={projectionMonths.toString()}
                       onValueChange={(value) => setProjectionMonths(Number.parseInt(value))}
@@ -168,13 +168,13 @@ export default function ProjectionsPage() {
           </TabsContent>
 
           <TabsContent value="monthly-projections" className="space-y-4">
-            <div className="flex items-center justify-end gap-2">
+            <div className="flex flex-col items-stretch sm:flex-row sm:items-center sm:justify-end gap-2">
               <Label htmlFor="projection-months">Meses a proyectar:</Label>
               <Select
                 value={projectionMonths.toString()}
                 onValueChange={(value) => setProjectionMonths(Number.parseInt(value))}
               >
-                <SelectTrigger id="projection-months" className="w-32">
+                <SelectTrigger id="projection-months" className="w-full sm:w-32">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -247,7 +247,7 @@ export default function ProjectionsPage() {
           <TabsContent value="expense-report" className="space-y-4">
             <Card>
               <CardHeader>
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <CardTitle className="flex items-center gap-2">
                       <TrendingUp className="h-5 w-5" />
@@ -255,12 +255,12 @@ export default function ProjectionsPage() {
                     </CardTitle>
                     <CardDescription>Distribución y promedios por categoría</CardDescription>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto">
                     <Select
                       value={reportYear.toString()}
                       onValueChange={(value) => setReportYear(Number.parseInt(value))}
                     >
-                      <SelectTrigger className="w-32">
+                      <SelectTrigger className="w-full sm:w-32">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -275,7 +275,7 @@ export default function ProjectionsPage() {
                       value={reportSemester?.toString() || "all"}
                       onValueChange={(value) => setReportSemester(value === "all" ? undefined : Number.parseInt(value))}
                     >
-                      <SelectTrigger className="w-40">
+                      <SelectTrigger className="w-full sm:w-40">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>

@@ -134,7 +134,7 @@ export default function DashboardPage() {
         {/* Welcome Section */}
         <div className="space-y-2">
           <div className="flex items-center gap-2">
-            <h1 className="text-3xl font-bold tracking-tight">Bienvenido, {user?.name || "Usuario"}</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Bienvenido, {user?.name || "Usuario"}</h1>
             <Tooltip>
               <TooltipTrigger
                 type="button"
@@ -192,13 +192,13 @@ export default function DashboardPage() {
                 {assets.map((asset) => (
                   <div
                     key={asset.id}
-                    className="flex items-center justify-between p-3 rounded-xl border border-[#f0e2cf] bg-white/70"
+                    className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between p-3 rounded-xl border border-[#f0e2cf] bg-white/70"
                   >
                     <div>
                       <p className="font-medium">{asset.account_name}</p>
                       <p className="text-xs text-muted-foreground capitalize">{asset.account_type}</p>
                     </div>
-                    <p className="text-lg font-semibold text-[#d9a441]">
+                    <p className="text-lg font-semibold text-[#d9a441] sm:text-right">
                       ${asset.current_balance.toLocaleString("es-CO")}
                     </p>
                   </div>

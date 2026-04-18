@@ -176,7 +176,7 @@ export function AddExpenseDialog({ onAdd, debts, assets }: AddExpenseDialogProps
               )}
             />
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
                 name="payment_period"
@@ -214,7 +214,7 @@ export function AddExpenseDialog({ onAdd, debts, assets }: AddExpenseDialogProps
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
                 name="semester"
@@ -322,14 +322,14 @@ export function AddExpenseDialog({ onAdd, debts, assets }: AddExpenseDialogProps
             />
           </div>
 
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+            <DialogFooter className="flex-col-reverse sm:flex-row gap-2">
+              <Button type="button" variant="outline" onClick={() => setOpen(false)} className="w-full sm:w-auto">
                 Cancelar
               </Button>
               <Button
                 type="submit"
-                className="bg-emerald-600 hover:bg-emerald-700"
                 disabled={form.formState.isSubmitting}
+                className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700"
               >
                 Guardar Gasto
               </Button>

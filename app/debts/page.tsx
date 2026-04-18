@@ -123,10 +123,10 @@ export default function DebtsPage() {
   return (
     <DashboardLayout>
       <PageShell className="space-y-6">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <h1 className="text-3xl font-bold tracking-tight">Gestión de Deudas</h1>
+              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Gestión de Deudas</h1>
               <Tooltip>
                 <TooltipTrigger
                   type="button"
@@ -159,7 +159,7 @@ export default function DebtsPage() {
         </Card>
 
         <Tabs defaultValue="active" className="space-y-4">
-          <TabsList>
+          <TabsList className="w-full overflow-x-auto whitespace-nowrap justify-start">
             <TabsTrigger value="active">Activas ({activeDebts.length})</TabsTrigger>
             <TabsTrigger value="paid">Pagadas ({paidDebts.length})</TabsTrigger>
             <TabsTrigger value="all">Todas ({debts.length})</TabsTrigger>

@@ -292,10 +292,10 @@ export default function IncomePage() {
     <DashboardLayout>
       <PageShell className="space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <h1 className="text-3xl font-bold tracking-tight">Gestión de Ingresos</h1>
+              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Gestión de Ingresos</h1>
               <Tooltip>
                 <TooltipTrigger
                   type="button"
@@ -367,7 +367,7 @@ export default function IncomePage() {
                     </Select>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="grid gap-2">
                       <Label htmlFor="year">Año *</Label>
                       <Select
@@ -408,13 +408,13 @@ export default function IncomePage() {
                   </div>
                 </div>
 
-                <DialogFooter>
-                  <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+                <DialogFooter className="flex-col-reverse sm:flex-row gap-2">
+                  <Button type="button" variant="outline" onClick={() => setOpen(false)} className="w-full sm:w-auto">
                     Cancelar
                   </Button>
                   <Button
                     type="submit"
-                    className="bg-emerald-600 hover:bg-emerald-700"
+                    className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700"
                     disabled={createIncomeMutation.isPending}
                   >
                     {createIncomeMutation.isPending ? (
@@ -553,21 +553,21 @@ export default function IncomePage() {
                 {filteredIncomes.map((income) => (
                   <div
                     key={income.id}
-                    className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                    className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
                   >
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-4 min-w-0">
                       <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center">
                         <DollarSign className="h-5 w-5 text-emerald-600" />
                       </div>
-                      <div>
-                        <p className="font-medium">{income.person_name}</p>
+                      <div className="min-w-0">
+                        <p className="font-medium truncate">{income.person_name}</p>
                         <p className="text-sm text-muted-foreground">
                           {months[income.month - 1].label} {income.year} - Día {income.payment_date}
                         </p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-4">
-                      <div className="text-right">
+                    <div className="flex items-center justify-between sm:justify-end gap-3">
+                      <div className="text-left sm:text-right">
                         <p className="text-lg font-bold text-emerald-600">${income.amount.toLocaleString("es-CO")}</p>
                         <p className="text-xs text-muted-foreground">
                           {income.payment_date === 15 ? "Primera Quincena" : "Segunda Quincena"}

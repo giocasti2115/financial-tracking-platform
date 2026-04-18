@@ -136,7 +136,7 @@ export default function MicroExpensesPage() {
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div className="space-y-2">
             <div className="flex items-center gap-2">
-              <h1 className="text-3xl font-bold tracking-tight">Gastos Hormiga</h1>
+              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Gastos Hormiga</h1>
               <Tooltip>
                 <TooltipTrigger
                   type="button"
@@ -154,13 +154,13 @@ export default function MicroExpensesPage() {
               Registra consumos diarios pequeños y visualiza el impacto mensual de tus antojos.
             </p>
           </div>
-          <Card className="max-w-sm">
+          <Card className="w-full lg:max-w-sm">
             <CardHeader className="pb-2">
               <CardTitle className="text-base">Mes analizado</CardTitle>
               <CardDescription>Selecciona el periodo para filtrar el historial</CardDescription>
             </CardHeader>
             <CardContent>
-              <Input type="month" value={selectedMonth} onChange={handleMonthChange} className="max-w-[220px]" />
+              <Input type="month" value={selectedMonth} onChange={handleMonthChange} className="w-full max-w-[220px]" />
             </CardContent>
           </Card>
         </div>

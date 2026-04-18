@@ -12,6 +12,7 @@ import type { Asset, Debt, Expense } from "@/lib/types"
 import { AlertCircle, Info, Loader2 } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { CloneExpensesDialog } from "@/components/expenses/clone-expenses-dialog"
+import { PropagateExpenseDialog, type PropagateAction } from "@/components/expenses/propagate-expense-dialog"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
@@ -36,6 +37,7 @@ export default function ExpensesPage() {
     [],
   )
   const [filters, setFilters] = useState(filterTemplate)
+  const [propagateContext, setPropagateContext] = useState<{ mode: "edit" | "add"; expense: Expense } | null>(null)
   const { data: expensesData = [], isLoading: expensesLoading } = useQuery({
     queryKey: ["expenses"],
     queryFn: apiClient.getExpenses,
@@ -151,7 +153,7 @@ export default function ExpensesPage() {
   })
 
   const handleAddExpense = async (newExpense: Omit<Expense, "id" | "created_at" | "updated_at">) => {
-    await createExpenseMutation.mutateAsync({
+    const createdExpense = await createExpenseMutation.mutateAsync({
       description: newExpense.description,
       amount: newExpense.amount,
       payment_date: newExpense.payment_date,
@@ -164,6 +166,8 @@ export default function ExpensesPage() {
       debt_id: newExpense.debt_id ?? null,
       asset_id: newExpense.asset_id ?? null,
     })
+
+    setPropagateContext({ mode: "add", expense: createdExpense as Expense })
   }
 
   const handleDeleteExpense = async (id: string) => {
@@ -184,6 +188,8 @@ export default function ExpensesPage() {
         debt_id: updatedExpense.debt_id ?? null,
       },
     })
+
+    setPropagateContext({ mode: "edit", expense: updatedExpense })
   }
 
   const handleCloneExpenses = async (clonedExpenses: Omit<Expense, "id" | "created_at" | "updated_at">[]) => {
@@ -230,6 +236,77 @@ export default function ExpensesPage() {
         asset_id: assetId,
       },
     })
+  }
+
+  const buildPaymentDateForMonth = (baseDate: string, month: number, year: number) => {
+    const base = parseDateInput(baseDate)
+    const safeBase = base ?? new Date(`${year}-${String(month).padStart(2, "0")}-01`)
+    const day = safeBase.getDate()
+    const lastDay = new Date(year, month, 0).getDate()
+    const clampedDay = Math.min(day, lastDay)
+    return `${year}-${String(month).padStart(2, "0")}-${String(clampedDay).padStart(2, "0")}`
+  }
+
+  const handlePropagate = async (action: PropagateAction) => {
+    if (!propagateContext) return
+
+    try {
+      if (action.type === "update") {
+        await Promise.all(
+          action.targets.map((target) =>
+            apiClient.updateExpense(target.id, {
+              description: action.changes.description,
+              amount: action.changes.amount,
+              payment_period: action.changes.payment_period,
+              debt_id: action.changes.debt_id ?? null,
+            }),
+          ),
+        )
+
+        toast({
+          title: "Cambios propagados",
+          description: `Actualizamos ${action.targets.length} gasto(s) en meses siguientes.`,
+        })
+      }
+
+      if (action.type === "clone") {
+        const base = propagateContext.expense
+        await Promise.all(
+          action.months.map(({ month, year }) =>
+            apiClient.createExpense({
+              description: base.description,
+              amount: base.amount,
+              payment_date: buildPaymentDateForMonth(base.payment_date, month, year),
+              payment_period: base.payment_period,
+              semester: month <= 6 ? 1 : 2,
+              year,
+              notes: base.notes,
+              is_paid: false,
+              amount_paid: 0,
+              debt_id: base.debt_id ?? null,
+              asset_id: base.asset_id ?? null,
+            }),
+          ),
+        )
+
+        toast({
+          title: "Gastos clonados",
+          description: `Creamos ${action.months.length} gasto(s) en meses siguientes.`,
+        })
+      }
+
+      await queryClient.invalidateQueries({ queryKey: ["expenses"] })
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "No pudimos propagar los cambios."
+      toast({
+        variant: "destructive",
+        title: "Error al propagar",
+        description: message,
+      })
+      throw error
+    } finally {
+      setPropagateContext(null)
+    }
   }
 
   if (authLoading || expensesLoading || debtsLoading || assetsLoading) {
@@ -282,10 +359,10 @@ export default function ExpensesPage() {
     <DashboardLayout>
       <PageShell className="space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <h1 className="text-3xl font-bold tracking-tight">Gestión de Gastos</h1>
+              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Gestión de Gastos</h1>
               <Tooltip>
                 <TooltipTrigger
                   type="button"
@@ -301,7 +378,7 @@ export default function ExpensesPage() {
             </div>
             <p className="text-muted-foreground">Registra y controla tus gastos quincenales</p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2 w-full sm:w-auto">
             {/* Clone button */}
             <CloneExpensesDialog expenses={expenses} onClone={handleCloneExpenses} />
             <AddExpenseDialog onAdd={handleAddExpense} debts={debts} assets={assets} />
@@ -334,7 +411,7 @@ export default function ExpensesPage() {
               <span className="text-muted-foreground">({filteredExpenses.length} gastos)</span>
             </div>
             {/* Payment status summary */}
-            <div className="mt-4 flex gap-4 text-sm">
+            <div className="mt-4 flex flex-wrap gap-4 text-sm">
               <div className="flex items-center gap-2">
                 <div className="h-3 w-3 rounded-full bg-yellow-400" />
                 <span className="text-muted-foreground">
@@ -409,6 +486,22 @@ export default function ExpensesPage() {
           onDelete={handleDeleteExpense}
           onEdit={handleEditExpense}
           onRegisterPayment={handleRegisterPayment}
+        />
+
+        <PropagateExpenseDialog
+          open={Boolean(propagateContext)}
+          onOpenChange={(open) => {
+            if (!open) {
+              setPropagateContext(null)
+            }
+          }}
+          mode={propagateContext?.mode ?? "edit"}
+          savedExpense={propagateContext?.expense ?? null}
+          allExpenses={expenses}
+          onPropagate={handlePropagate}
+          isLoading={
+            createExpenseMutation.isPending || updateExpenseMutation.isPending || deleteExpenseMutation.isPending
+          }
         />
       </PageShell>
     </DashboardLayout>

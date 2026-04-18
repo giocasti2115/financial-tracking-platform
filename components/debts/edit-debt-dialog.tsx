@@ -218,7 +218,7 @@ export function EditDebtDialog({ debt, onSubmit, isUpdating }: EditDebtDialogPro
             </DialogHeader>
 
             <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
                   name="debt_type"
@@ -259,7 +259,7 @@ export function EditDebtDialog({ debt, onSubmit, isUpdating }: EditDebtDialogPro
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
                   name="original_amount"
@@ -289,7 +289,7 @@ export function EditDebtDialog({ debt, onSubmit, isUpdating }: EditDebtDialogPro
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
                   name="monthly_payment"
@@ -347,7 +347,7 @@ export function EditDebtDialog({ debt, onSubmit, isUpdating }: EditDebtDialogPro
                 )}
               />
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
                   name="start_date"
@@ -406,13 +406,13 @@ export function EditDebtDialog({ debt, onSubmit, isUpdating }: EditDebtDialogPro
               />
             </div>
 
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={isUpdating}>
+            <DialogFooter className="flex-col-reverse sm:flex-row gap-2">
+              <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={isUpdating} className="w-full sm:w-auto">
                 Cancelar
               </Button>
               <Button
                 type="submit"
-                className="bg-emerald-600 hover:bg-emerald-700"
+                className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700"
                 disabled={form.formState.isSubmitting || isUpdating}
               >
                 {form.formState.isSubmitting ? (

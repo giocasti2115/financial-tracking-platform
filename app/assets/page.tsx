@@ -135,10 +135,10 @@ export default function AssetsPage() {
     <DashboardLayout>
       <PageShell className="space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <h1 className="text-3xl font-bold tracking-tight">Gestión de Activos</h1>
+              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Gestión de Activos</h1>
               <Tooltip>
                 <TooltipTrigger
                   type="button"
@@ -212,13 +212,13 @@ export default function AssetsPage() {
                   </div>
                 </div>
 
-                <DialogFooter>
-                  <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+                <DialogFooter className="flex-col-reverse sm:flex-row gap-2">
+                  <Button type="button" variant="outline" onClick={() => setOpen(false)} className="w-full sm:w-auto">
                     Cancelar
                   </Button>
                   <Button
                     type="submit"
-                    className="bg-emerald-600 hover:bg-emerald-700"
+                    className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700"
                     disabled={createAssetMutation.isPending}
                   >
                     {createAssetMutation.isPending ? (
@@ -253,7 +253,7 @@ export default function AssetsPage() {
             {assets.map((asset) => (
               <Card key={asset.id} className="hover:shadow-md transition-shadow">
                 <CardHeader>
-                  <div className="flex items-start justify-between">
+                  <div className="flex items-start justify-between gap-2">
                     <div>
                       <CardTitle className="text-lg">{asset.account_name}</CardTitle>
                       <CardDescription className="capitalize">{asset.account_type}</CardDescription>

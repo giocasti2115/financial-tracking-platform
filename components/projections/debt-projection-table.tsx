@@ -61,7 +61,7 @@ export function DebtProjectionTable({ projections }: DebtProjectionTableProps) {
     <div className="space-y-6">
       {sortedGroups.map((group) => (
         <div key={`${group.year}-${group.month}`} className="space-y-2">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <h3 className="text-lg font-semibold">
               {monthNames[group.month - 1]} {group.year}
             </h3>
@@ -70,8 +70,8 @@ export function DebtProjectionTable({ projections }: DebtProjectionTableProps) {
             </Badge>
           </div>
 
-          <div className="rounded-lg border">
-            <Table>
+          <div className="rounded-lg border overflow-x-auto">
+            <Table className="min-w-[760px]">
               <TableHeader>
                 <TableRow>
                   <TableHead>Deuda</TableHead>
