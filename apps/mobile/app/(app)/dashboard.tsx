@@ -3,6 +3,8 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-nati
 import { AppScreen } from "@/components/ui/app-screen"
 import { PrimaryButton } from "@/components/ui/primary-button"
 import { fetchDashboardBundle, dashboardCalculations } from "@/lib/dashboard"
+import { buildDashboardInsights } from "@/lib/insights"
+import { reminders, type ReminderItem } from "@/lib/reminders"
 import { useAuth } from "@/providers/auth-provider"
 import { colors } from "@/theme/colors"
 import type { DashboardBundle } from "@/lib/types"
@@ -18,6 +20,7 @@ export default function DashboardScreen() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [bundle, setBundle] = useState<DashboardBundle | null>(null)
+  const [reminderItems, setReminderItems] = useState<ReminderItem[]>([])
 
   const loadDashboard = useCallback(async () => {
     setLoading(true)
@@ -26,6 +29,8 @@ export default function DashboardScreen() {
     try {
       const data = await fetchDashboardBundle({ accessToken, refreshSession })
       setBundle(data)
+      const syncedReminders = await reminders.sync(data.expenses, data.debts)
+      setReminderItems(syncedReminders)
     } catch (err) {
       const message = err instanceof Error ? err.message : "No pudimos cargar tu dashboard móvil."
       setError(message)
@@ -57,6 +62,18 @@ export default function DashboardScreen() {
     () => currencyFormatter.format(dashboardCalculations.monthlyExpenses(bundle?.expenses ?? [])),
     [bundle],
   )
+
+  const insights = useMemo(() => {
+    if (!bundle) return null
+    return buildDashboardInsights(bundle)
+  }, [bundle])
+
+  const unreadReminders = useMemo(() => reminderItems.filter((item) => !item.read), [reminderItems])
+
+  const handleMarkRemindersRead = useCallback(async () => {
+    const updated = await reminders.markAllAsRead()
+    setReminderItems(updated)
+  }, [])
 
   return (
     <AppScreen scroll>
@@ -100,6 +117,43 @@ export default function DashboardScreen() {
             <Text style={styles.sectionItem}>- Gastos registrados: {bundle?.expenses.length ?? 0}</Text>
             <Text style={styles.sectionItem}>- Ingresos registrados: {bundle?.incomes.length ?? 0}</Text>
           </View>
+
+          <View style={styles.sectionCard}>
+            <Text style={styles.sectionTitle}>Recordatorios</Text>
+            {reminderItems.length === 0 ? (
+              <Text style={styles.sectionItem}>- Sin pagos próximos para los próximos 10 días.</Text>
+            ) : (
+              <>
+                <Text style={styles.sectionItem}>- Pendientes: {unreadReminders.length}</Text>
+                {reminderItems.slice(0, 4).map((item) => (
+                  <Text key={item.id} style={styles.sectionItem}>
+                    - {item.title} ({new Date(item.dueDate).toLocaleDateString("es-CO")})
+                  </Text>
+                ))}
+                <PrimaryButton label="Marcar recordatorios leídos" onPress={() => void handleMarkRemindersRead()} />
+              </>
+            )}
+          </View>
+
+          {insights ? (
+            <View style={styles.sectionCard}>
+              <Text style={styles.sectionTitle}>Reporte avanzado</Text>
+              <Text style={styles.sectionItem}>- Flujo neto mensual: {currencyFormatter.format(insights.monthlyNet)}</Text>
+              <Text style={styles.sectionItem}>
+                - Presión de deuda mensual: {currencyFormatter.format(insights.debtPressure)}
+              </Text>
+              {insights.topExpenseCategories.length > 0 ? (
+                <>
+                  <Text style={styles.sectionItem}>- Top gastos:</Text>
+                  {insights.topExpenseCategories.map((entry) => (
+                    <Text key={entry.category} style={styles.sectionSubItem}>
+                      • {entry.category}: {currencyFormatter.format(entry.total)}
+                    </Text>
+                  ))}
+                </>
+              ) : null}
+            </View>
+          ) : null}
 
           <Pressable onPress={() => void signOut()} style={styles.signOutLink}>
             <Text style={styles.signOutText}>Cerrar sesión</Text>
@@ -217,6 +271,11 @@ const styles = StyleSheet.create({
   sectionItem: {
     color: colors.navy700,
     fontSize: 14,
+  },
+  sectionSubItem: {
+    color: colors.navy500,
+    fontSize: 13,
+    marginLeft: 4,
   },
   signOutLink: {
     paddingVertical: 8,

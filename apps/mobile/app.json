@@ -3,7 +3,7 @@
     "name": "Aurea Finanzas",
     "slug": "aurea-finanzas-mobile",
     "scheme": "aureafinanzas",
-    "version": "0.1.0",
+    "version": "1.0.0-rc.1",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "android": {

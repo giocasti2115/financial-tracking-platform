@@ -1,4 +1,5 @@
 import { appConfig } from "@/lib/config"
+import { telemetry } from "@/lib/telemetry"
 
 export class ApiError extends Error {
   constructor(
@@ -43,11 +44,14 @@ export const apiRequest = async <T>(path: string, options: RequestOptions = {}):
       headers: finalHeaders,
     })
   } catch {
+    await telemetry.track("error", "network", `Network failure calling ${path}`)
     throw new ApiError("No pudimos conectar con el servidor. Verifica tu conexión e intenta nuevamente.")
   }
 
   if (!response.ok) {
-    throw new ApiError(await parseErrorMessage(response), response.status)
+    const message = await parseErrorMessage(response)
+    await telemetry.track("warning", "http", `${response.status} on ${path}: ${message}`)
+    throw new ApiError(message, response.status)
   }
 
   if (response.status === 204) {

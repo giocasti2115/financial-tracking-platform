@@ -1,15 +1,26 @@
 import { authRequest, type AuthRequestOptions } from "@/lib/auth-request"
+import { cacheStore } from "@/lib/cache-store"
 import type { Asset, DashboardBundle, Debt, Expense, Income } from "@/lib/types"
 
 export const fetchDashboardBundle = async (auth: AuthRequestOptions): Promise<DashboardBundle> => {
-  const [incomes, expenses, debts, assets] = await Promise.all([
-    authRequest<Income[]>("/incomes", auth),
-    authRequest<Expense[]>("/expenses", auth),
-    authRequest<Debt[]>("/debts", auth),
-    authRequest<Asset[]>("/assets", auth),
-  ])
+  try {
+    const [incomes, expenses, debts, assets] = await Promise.all([
+      authRequest<Income[]>("/incomes", auth),
+      authRequest<Expense[]>("/expenses", auth),
+      authRequest<Debt[]>("/debts", auth),
+      authRequest<Asset[]>("/assets", auth),
+    ])
 
-  return { incomes, expenses, debts, assets }
+    const bundle = { incomes, expenses, debts, assets }
+    await cacheStore.set("dashboard_bundle", bundle)
+    return bundle
+  } catch (error) {
+    const cached = await cacheStore.get<DashboardBundle>("dashboard_bundle")
+    if (cached?.value) {
+      return cached.value
+    }
+    throw error
+  }
 }
 
 export const dashboardCalculations = {

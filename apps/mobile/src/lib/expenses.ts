@@ -1,4 +1,5 @@
 import { authRequest, type AuthRequestOptions } from "@/lib/auth-request"
+import { cacheStore } from "@/lib/cache-store"
 import type { Expense, PaymentPeriod } from "@/lib/types"
 
 export type NewExpensePayload = {
@@ -19,8 +20,17 @@ type ApiResponse<T> = { data: T }
 
 export const expensesApi = {
   list: async (auth: AuthRequestOptions) => {
-    const response = await authRequest<ApiResponse<Expense[]>>("/expenses", auth)
-    return response.data
+    try {
+      const response = await authRequest<ApiResponse<Expense[]>>("/expenses", auth)
+      await cacheStore.set("expenses_list", response.data)
+      return response.data
+    } catch (error) {
+      const cached = await cacheStore.get<Expense[]>("expenses_list")
+      if (cached?.value) {
+        return cached.value
+      }
+      throw error
+    }
   },
 
   create: async (auth: AuthRequestOptions, payload: NewExpensePayload) => {
@@ -28,6 +38,13 @@ export const expensesApi = {
       method: "POST",
       body: JSON.stringify(payload),
     })
+    const cached = await cacheStore.get<Expense[]>("expenses_list")
+    if (cached?.value) {
+      await cacheStore.set(
+        "expenses_list",
+        [response.data, ...cached.value].sort((a, b) => b.payment_date.localeCompare(a.payment_date)),
+      )
+    }
     return response.data
   },
 }
