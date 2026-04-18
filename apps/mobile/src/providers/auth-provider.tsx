@@ -10,6 +10,7 @@ type AuthState = {
   signIn: (email: string, password: string) => Promise<void>
   signUp: (name: string, email: string, password: string) => Promise<void>
   refreshSession: () => Promise<string | null>
+  updateProfile: (payload: { name?: string }) => Promise<void>
   signOut: () => Promise<void>
 }
 
@@ -107,6 +108,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [refreshToken])
 
+  const updateProfile = useCallback(
+    async (payload: { name?: string }) => {
+      setUser((current) => {
+        if (!current) return current
+        const nextUser: AuthUser = {
+          ...current,
+          name: payload.name !== undefined ? payload.name : current.name,
+        }
+        void SecureStore.setItemAsync(STORAGE_KEYS.user, JSON.stringify(nextUser))
+        return nextUser
+      })
+    },
+    [],
+  )
+
   const signOut = useCallback(async () => {
     setUser(null)
     setAccessToken(null)
@@ -123,9 +139,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       signIn,
       signUp,
       refreshSession,
+      updateProfile,
       signOut,
     }),
-    [user, accessToken, refreshToken, loading, signIn, signUp, refreshSession, signOut],
+    [user, accessToken, refreshToken, loading, signIn, signUp, refreshSession, updateProfile, signOut],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

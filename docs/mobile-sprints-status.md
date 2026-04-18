@@ -16,7 +16,7 @@ Estado actualizado: 2026-04-18
 | Sprint 1.3 | Módulo Deudas móvil (listar, filtrar, crear, registrar pago) | **Completado** |
 | Sprint 1.4 | Proyecciones móvil: simulador de crédito funcional | **Completado** |
 | Sprint 1.5 | Proyecciones: registrar deuda desde simulación + export básico | **Completado** |
-| Sprint 1.6 | Perfil: edición de datos de usuario + settings base | **Pendiente** |
+| Sprint 1.6 | Perfil: edición de datos de usuario + settings base | **Completado** |
 | Sprint 1.7 | Manejo offline básico (cache lectura + reintentos) | **Pendiente** |
 | Sprint 2.0 | Push notifications (recordatorios de pago) | **Pendiente** |
 | Sprint 2.1 | Reportes avanzados y visualizaciones en mobile | **Pendiente** |
@@ -31,3 +31,4 @@ Estado actualizado: 2026-04-18
 - Sprint 1.3: pantalla deudas conectada y operativa.
 - Sprint 1.4: simulador de crédito en pantalla de proyecciones.
 - Sprint 1.5: registro de deuda desde simulación + exportación CSV básica para compartir.
+- Sprint 1.6: edición de nombre de perfil y configuración base persistida en dispositivo.
