@@ -1,0 +1,23 @@
+{
+  "expo": {
+    "name": "Aurea Finanzas",
+    "slug": "aurea-finanzas-mobile",
+    "scheme": "aureafinanzas",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "android": {
+      "package": "com.aureafinanzas.mobile",
+      "adaptiveIcon": {
+        "backgroundColor": "#030f1c"
+      }
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
