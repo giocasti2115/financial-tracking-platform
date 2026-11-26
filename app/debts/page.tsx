@@ -16,6 +16,8 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { apiClient } from "@/lib/api-client"
 import type { UpdateDebtPayload } from "@/lib/api-client"
+import { useEntitlements } from "@/components/entitlements/use-entitlements"
+import { PremiumPaywall } from "@/components/entitlements/premium-gate"
 
 type DebtPaymentForm = {
   debtId: string
@@ -26,6 +28,7 @@ type DebtPaymentForm = {
 
 export default function DebtsPage() {
   const { user, loading: authLoading } = useAuth()
+  const { canAccess } = useEntitlements()
   const router = useRouter()
   const queryClient = useQueryClient()
   const [deletingDebtId, setDeletingDebtId] = useState<string | null>(null)
@@ -108,6 +111,16 @@ export default function DebtsPage() {
   }
 
   const isLoading = authLoading || debtsLoading
+
+  if (!canAccess("debts")) {
+    return (
+      <DashboardLayout>
+        <PageShell>
+          <PremiumPaywall feature="debts" />
+        </PageShell>
+      </DashboardLayout>
+    )
+  }
 
   if (isLoading) {
     return (

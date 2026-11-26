@@ -9,6 +9,10 @@ export function ServiceWorkerRegistrar() {
   const hasRefreshedRef = useRef(false)
 
   useEffect(() => {
+    if (process.env.NEXT_PUBLIC_CAPACITOR === "1") {
+      return
+    }
+
     if (process.env.NODE_ENV !== "production") {
       return
     }

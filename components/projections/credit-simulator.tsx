@@ -16,6 +16,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/hooks/use-toast"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { apiClient } from "@/lib/api-client"
+import { PremiumGate } from "@/components/entitlements/premium-gate"
 
 const simulatorSchema = z.object({
   amount: z
@@ -388,9 +389,11 @@ export function CreditSimulator() {
                 </div>
               </div>
               <div className="pt-4 flex flex-wrap gap-3">
-                <Button type="button" variant="secondary" onClick={handleExportCsv} disabled={!result?.schedule.length}>
-                  Descargar CSV
-                </Button>
+                <PremiumGate feature="exportData" variant="compact">
+                  <Button type="button" variant="secondary" onClick={handleExportCsv} disabled={!result?.schedule.length}>
+                    Descargar CSV
+                  </Button>
+                </PremiumGate>
                 <Button type="button" variant="outline" asChild disabled={!result?.schedule.length}>
                   <a href="#register-debt">Registrar deuda real</a>
                 </Button>

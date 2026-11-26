@@ -4,6 +4,8 @@
   "private": true,
   "scripts": {
     "build": "next build",
+    "build:capacitor": "node scripts/build-capacitor.mjs",
+    "cap:sync": "pnpm build:capacitor && pnpm exec cap sync",
     "dev": "next dev",
     "lint": "eslint .",
     "start": "next start",
@@ -68,6 +70,10 @@
     "zod": "3.25.76"
   },
   "devDependencies": {
+    "@capacitor/android": "^8.6.3",
+    "@capacitor/cli": "^8.6.3",
+    "@capacitor/core": "^8.6.3",
+    "@capacitor/ios": "^8.6.3",
     "@tailwindcss/postcss": "^4.1.9",
     "@types/node": "^22",
     "@types/react": "^18",

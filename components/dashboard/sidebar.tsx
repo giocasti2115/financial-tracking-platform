@@ -20,23 +20,31 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { AureaMark } from "@/components/ui/aurea-mark"
+import { useEntitlements } from "@/components/entitlements/use-entitlements"
+import type { FeatureId } from "@/lib/entitlements"
 
 export function Sidebar() {
   const [isCollapsed, setIsCollapsed] = useState(false)
   const [isMobileOpen, setIsMobileOpen] = useState(false)
   const { user, signOut } = useAuth()
+  const { canAccess } = useEntitlements()
   const pathname = usePathname()
   const sidebarBackground =
     "radial-gradient(circle at 15% 18%, rgba(217,164,65,0.25), transparent 42%), radial-gradient(circle at 80% 0%, rgba(6,38,63,0.35), transparent 55%), linear-gradient(180deg, #02070f 0%, #041724 55%, #082b47 100%)"
 
-  const menuItems = [
+  const menuItems: Array<{
+    href: string
+    label: string
+    icon: typeof LayoutDashboard
+    feature?: FeatureId
+  }> = [
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-    { href: "/income", label: "Ingresos", icon: TrendingUp },
-    { href: "/expenses", label: "Gastos", icon: Receipt },
-    { href: "/micro-expenses", label: "Gastos Hormiga", icon: Coffee },
-    { href: "/debts", label: "Deudas", icon: CreditCard },
-    { href: "/assets", label: "Activos", icon: PiggyBank },
-    { href: "/projections", label: "Proyecciones", icon: TrendingUp },
+    { href: "/income", label: "Ingresos", icon: TrendingUp, feature: "income" },
+    { href: "/expenses", label: "Gastos", icon: Receipt, feature: "expenses" },
+    { href: "/micro-expenses", label: "Gastos Hormiga", icon: Coffee, feature: "microExpenses" },
+    { href: "/debts", label: "Deudas", icon: CreditCard, feature: "debts" },
+    { href: "/assets", label: "Activos", icon: PiggyBank, feature: "assets" },
+    { href: "/projections", label: "Proyecciones", icon: TrendingUp, feature: "projections" },
   ]
 
   return (
@@ -103,6 +111,7 @@ export function Sidebar() {
             {menuItems.map((item) => {
               const Icon = item.icon
               const isActive = pathname === item.href
+              const locked = item.feature ? !canAccess(item.feature) : false
               return (
                 <Link
                   key={item.href}
@@ -124,6 +133,11 @@ export function Sidebar() {
                     className={cn("h-5 w-5 flex-shrink-0", isActive ? "text-[#d9a441]" : "text-white/70")}
                   />
                   {!isCollapsed && <span>{item.label}</span>}
+                  {!isCollapsed && locked && (
+                    <span className="ml-auto text-[10px] font-semibold uppercase tracking-wide text-[#d9a441]">
+                      Premium
+                    </span>
+                  )}
                 </Link>
               )
             })}
