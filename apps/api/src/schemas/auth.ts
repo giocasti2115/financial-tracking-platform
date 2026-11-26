@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 export const loginSchema = z.object({
   email: z.string().email(),
-  password: z.string().min(8)
+  password: z.string().min(8).max(200)
 });
 
 export const registerSchema = z.object({
@@ -16,13 +16,12 @@ export const refreshSchema = z.object({
 });
 
 export const forgotPasswordSchema = z.object({
-  email: z.string().email()
+  email: z.string().email().max(320)
 });
 
 export const resetPasswordSchema = z.object({
-  email: z.string().email(),
-  temporaryPassword: z.string().min(8),
-  newPassword: z.string().min(8)
+  token: z.string().min(20, 'El enlace no es válido o expiró.').max(200),
+  newPassword: z.string().min(8, 'La contraseña debe tener al menos 8 caracteres.').max(200)
 });
 
 export type LoginInput = z.infer<typeof loginSchema>;
