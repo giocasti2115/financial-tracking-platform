@@ -23,13 +23,11 @@ interface RegisterPayload {
 }
 
 interface ForgotPasswordResponse {
-  temporaryPassword: string
-  expiresAt: string
+  message: string
 }
 
 interface ResetPasswordPayload {
-  email: string
-  temporaryPassword: string
+  token: string
   newPassword: string
 }
 
@@ -158,14 +156,15 @@ export const auth = {
       body: JSON.stringify({ email }),
     })
 
-    return handleResponse<ForgotPasswordResponse>(response)
+    const data = await handleResponse<ForgotPasswordResponse>(response)
+    return { message: data.message }
   },
 
   async resetPassword(payload: ResetPasswordPayload): Promise<void> {
     const response = await safeFetch(`${API_URL}/auth/reset-password`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
+      body: JSON.stringify({ token: payload.token, newPassword: payload.newPassword }),
     })
 
     await handleResponse<{ message: string }>(response)

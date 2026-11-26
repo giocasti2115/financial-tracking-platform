@@ -7,7 +7,7 @@ import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { auth } from "@/lib/auth"
-import { Copy, Loader2 } from "lucide-react"
+import { Loader2 } from "lucide-react"
 import { useAuth } from "@/components/auth-provider"
 import { cn } from "@/lib/utils"
 import { AureaMark } from "@/components/ui/aurea-mark"
@@ -19,8 +19,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { useToast } from "@/hooks/use-toast"
-
 const getInitialLoginState = () => ({
   email: "",
   password: "",
@@ -41,21 +39,12 @@ export default function LoginPage() {
   const [signupData, setSignupData] = useState(getInitialSignupState)
   const [signupLoading, setSignupLoading] = useState(false)
   const [forgotOpen, setForgotOpen] = useState(false)
-  const [forgotStep, setForgotStep] = useState<"request" | "reset" | "success">("request")
+  const [forgotStep, setForgotStep] = useState<"request" | "sent">("request")
   const [forgotEmail, setForgotEmail] = useState("")
-  const [tempExpiresAt, setTempExpiresAt] = useState<string | null>(null)
   const [forgotError, setForgotError] = useState<string | null>(null)
   const [forgotLoading, setForgotLoading] = useState(false)
-  const [resetLoading, setResetLoading] = useState(false)
-  const [copiedTemp, setCopiedTemp] = useState(false)
-  const [resetFields, setResetFields] = useState({
-    temporaryPassword: "",
-    newPassword: "",
-    confirmPassword: "",
-  })
   const router = useRouter()
   const { setUser } = useAuth()
-  const { toast } = useToast()
 
   const isLoginMode = mode === "login"
   const heroGradient =
@@ -78,12 +67,8 @@ export default function LoginPage() {
 
   const resetForgotState = () => {
     setForgotStep("request")
-    setTempExpiresAt(null)
     setForgotError(null)
     setForgotLoading(false)
-    setResetLoading(false)
-    setCopiedTemp(false)
-    setResetFields({ temporaryPassword: "", newPassword: "", confirmPassword: "" })
   }
 
   const handleForgotDialogChange = (nextOpen: boolean) => {
@@ -111,71 +96,15 @@ export default function LoginPage() {
 
     setForgotLoading(true)
     try {
-      const result = await auth.requestPasswordReset(emailValue)
-      setTempExpiresAt(result.expiresAt)
-      setResetFields((prev) => ({ ...prev, temporaryPassword: result.temporaryPassword }))
-      setForgotStep("reset")
-      toast({
-        title: "Clave temporal generada",
-        description: "Copia la clave y define una nueva contraseña.",
-      })
+      await auth.requestPasswordReset(emailValue)
+      setForgotStep("sent")
     } catch (err) {
-      setForgotError(err instanceof Error ? err.message : "No pudimos generar la clave temporal.")
+      setForgotError(err instanceof Error ? err.message : "No pudimos procesar la solicitud.")
     } finally {
       setForgotLoading(false)
     }
   }
 
-  const handlePasswordReset = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    setForgotError(null)
-
-    if (!resetFields.temporaryPassword.trim()) {
-      setForgotError("Ingresa la clave temporal enviada.")
-      return
-    }
-
-    if (resetFields.newPassword.length < 8) {
-      setForgotError("La nueva contraseña debe tener al menos 8 caracteres.")
-      return
-    }
-
-    if (resetFields.newPassword !== resetFields.confirmPassword) {
-      setForgotError("Las contraseñas no coinciden.")
-      return
-    }
-
-    setResetLoading(true)
-    try {
-      await auth.resetPassword({
-        email: forgotEmail.trim(),
-        temporaryPassword: resetFields.temporaryPassword.trim(),
-        newPassword: resetFields.newPassword,
-      })
-      setForgotStep("success")
-      toast({
-        title: "Contraseña actualizada",
-        description: "Ya puedes iniciar sesión con tu nueva contraseña.",
-      })
-      setFormData((prev) => ({ ...prev, email: forgotEmail.trim(), password: "" }))
-    } catch (err) {
-      setForgotError(err instanceof Error ? err.message : "No pudimos actualizar la contraseña.")
-    } finally {
-      setResetLoading(false)
-    }
-  }
-
-  const handleCopyTempPassword = async () => {
-    const value = resetFields.temporaryPassword.trim()
-    if (!value || typeof navigator === "undefined" || !navigator.clipboard) return
-    try {
-      await navigator.clipboard.writeText(value)
-      setCopiedTemp(true)
-      setTimeout(() => setCopiedTemp(false), 2000)
-    } catch (err) {
-      console.error("[forgot-password] copy error", err)
-    }
-  }
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setLoading(true)
@@ -482,7 +411,7 @@ export default function LoginPage() {
                   <DialogHeader>
                     <DialogTitle>¿Olvidaste tu contraseña?</DialogTitle>
                     <DialogDescription>
-                      Genera una clave temporal ingresando el correo con el que te registraste.
+                      Escribe el correo de tu cuenta. Si está registrado, enviaremos un enlace para elegir una contraseña nueva.
                     </DialogDescription>
                   </DialogHeader>
 
@@ -505,114 +434,24 @@ export default function LoginPage() {
                       Cancelar
                     </Button>
                     <Button type="submit" className="bg-emerald-600 hover:bg-emerald-700" disabled={forgotLoading}>
-                      {forgotLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Generar clave temporal"}
+                      {forgotLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Enviar enlace"}
                     </Button>
                   </DialogFooter>
                 </form>
               )}
 
-              {forgotStep === "reset" && (
-                <form className="space-y-4" onSubmit={handlePasswordReset}>
-                  <DialogHeader>
-                    <DialogTitle>Clave temporal generada</DialogTitle>
-                    <DialogDescription>
-                      Copia la clave temporal y define tu nueva contraseña. Válida durante 60 minutos.
-                    </DialogDescription>
-                  </DialogHeader>
-
-                  <div className="grid gap-2">
-                    <Label htmlFor="temp-password">Clave temporal</Label>
-                    <div className="flex gap-2">
-                      <Input
-                        id="temp-password"
-                        value={resetFields.temporaryPassword}
-                        onChange={(event) =>
-                          setResetFields((prev) => ({ ...prev, temporaryPassword: event.target.value }))
-                        }
-                      />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        className="shrink-0"
-                        onClick={handleCopyTempPassword}
-                        disabled={!resetFields.temporaryPassword}
-                        title="Copiar clave temporal"
-                      >
-                        <Copy className="h-4 w-4" />
-                      </Button>
-                    </div>
-                    {copiedTemp && <p className="text-xs text-emerald-700">¡Clave copiada al portapapeles!</p>}
-                    {tempExpiresAt && (
-                      <p className="text-xs text-muted-foreground">
-                        Expira el {new Date(tempExpiresAt).toLocaleString("es-CO", {
-                          dateStyle: "medium",
-                          timeStyle: "short",
-                        })}
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="grid gap-2">
-                    <Label htmlFor="new-password">Nueva contraseña</Label>
-                    <Input
-                      id="new-password"
-                      type="password"
-                      value={resetFields.newPassword}
-                      onChange={(event) =>
-                        setResetFields((prev) => ({ ...prev, newPassword: event.target.value }))
-                      }
-                      placeholder="••••••••"
-                    />
-                  </div>
-
-                  <div className="grid gap-2">
-                    <Label htmlFor="confirm-new-password">Confirmar contraseña</Label>
-                    <Input
-                      id="confirm-new-password"
-                      type="password"
-                      value={resetFields.confirmPassword}
-                      onChange={(event) =>
-                        setResetFields((prev) => ({ ...prev, confirmPassword: event.target.value }))
-                      }
-                      placeholder="••••••••"
-                    />
-                  </div>
-
-                  {forgotError && <p className="text-sm text-red-600">{forgotError}</p>}
-
-                  <DialogFooter className="flex flex-col gap-2 sm:flex-row">
-                    <Button type="button" variant="outline" onClick={() => handleForgotDialogChange(false)}>
-                      Cancelar
-                    </Button>
-                    <Button type="submit" className="bg-emerald-600 hover:bg-emerald-700" disabled={resetLoading}>
-                      {resetLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Actualizar contraseña"}
-                    </Button>
-                  </DialogFooter>
-                </form>
-              )}
-
-              {forgotStep === "success" && (
+              {forgotStep === "sent" && (
                 <div className="space-y-4">
                   <DialogHeader>
-                    <DialogTitle>Contraseña actualizada</DialogTitle>
+                    <DialogTitle>Revisa tu correo</DialogTitle>
                     <DialogDescription>
-                      Inicia sesión con tu nueva contraseña para continuar gestionando tus finanzas.
+                      Si el correo está registrado, enviaremos un enlace para restablecer la contraseña. Revisa también
+                      la carpeta de spam. El enlace vence en 30 minutos y solo se puede usar una vez.
                     </DialogDescription>
                   </DialogHeader>
-                  <DialogFooter className="flex flex-col gap-2 sm:flex-row">
-                    <Button type="button" variant="outline" onClick={() => handleForgotDialogChange(false)}>
-                      Cerrar
-                    </Button>
-                    <Button
-                      type="button"
-                      className="bg-emerald-600 hover:bg-emerald-700"
-                      onClick={() => {
-                        handleForgotDialogChange(false)
-                        setMode("login")
-                      }}
-                    >
-                      Ir a iniciar sesión
+                  <DialogFooter>
+                    <Button type="button" className="bg-emerald-600 hover:bg-emerald-700" onClick={() => handleForgotDialogChange(false)}>
+                      Entendido
                     </Button>
                   </DialogFooter>
                 </div>

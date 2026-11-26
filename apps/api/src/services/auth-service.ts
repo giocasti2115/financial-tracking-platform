@@ -1,30 +1,41 @@
 import { randomBytes, createHash } from 'crypto';
 import createError from 'http-errors';
 import jwt from 'jsonwebtoken';
+import { deliverPasswordResetEmail, emailConfigFromEnv } from '../email/password-reset-mailer.js';
 import { env } from '../env.js';
-import { query } from '../lib/db.js';
+import { db, query } from '../lib/db.js';
 import { comparePassword, hashPassword } from '../lib/password.js';
+import {
+  CREATE_PASSWORD_RESET_TOKENS,
+  CREATE_PASSWORD_RESET_TOKENS_INDEX
+} from '../security/password-reset-table.js';
+import {
+  completePasswordReset,
+  InvalidResetTokenError,
+  issuePasswordReset
+} from '../security/password-reset-flow.js';
+import { GENERIC_RESET_MESSAGE, INVALID_RESET_MESSAGE, hashResetToken } from '../security/reset-token.js';
 
 const ACCESS_TOKEN_TTL = '15m';
 const REFRESH_TOKEN_TTL_MINUTES = 60 * 24 * 7;
-const TEMP_PASSWORD_TTL_MINUTES = 60;
-const TEMP_PASSWORD_LENGTH = 10;
-const TEMP_PASSWORD_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
 const hashToken = (token: string) => createHash('sha256').update(token).digest('hex');
 
+let passwordResetTableEnsured = false;
+
+const ensurePasswordResetTable = async () => {
+  if (passwordResetTableEnsured) return;
+  await query(CREATE_PASSWORD_RESET_TOKENS);
+  await query(CREATE_PASSWORD_RESET_TOKENS_INDEX);
+  passwordResetTableEnsured = true;
+};
+
+const logReset = (message: string) => {
+  console.warn(`[auth] ${message}`);
+};
+
 const signAccessToken = (payload: { userId: string; sessionId: string }) =>
   jwt.sign(payload, env.JWT_SECRET, { expiresIn: ACCESS_TOKEN_TTL });
-
-const generateTemporaryPassword = () => {
-  const random = randomBytes(TEMP_PASSWORD_LENGTH);
-  let result = '';
-  for (let i = 0; i < TEMP_PASSWORD_LENGTH; i += 1) {
-    const index = random[i] % TEMP_PASSWORD_ALPHABET.length;
-    result += TEMP_PASSWORD_ALPHABET[index];
-  }
-  return result;
-};
 
 type DbUser = {
   id: string;
@@ -130,65 +141,70 @@ export const AuthService = {
   },
 
   requestPasswordReset: async (email: string) => {
-    const normalizedEmail = email.trim().toLowerCase();
-    const userResult = await query<{ id: string }>(
-      'SELECT id FROM users WHERE email = $1',
-      [normalizedEmail]
-    );
-
-    const user = userResult.rows[0];
-    if (!user) {
-      throw createError(404, 'No encontramos un usuario con este correo.');
+    try {
+      await ensurePasswordResetTable();
+    } catch {
+      logReset('password reset table is unavailable');
+      return { message: GENERIC_RESET_MESSAGE };
     }
 
-    const temporaryPassword = generateTemporaryPassword();
-    const tempHash = await hashPassword(temporaryPassword);
-    const expiresAt = new Date(Date.now() + TEMP_PASSWORD_TTL_MINUTES * 60 * 1000);
-
-    await query(
-      `UPDATE users
-       SET temp_password_hash = $1,
-           temp_password_expires_at = $2,
-           updated_at = NOW()
-       WHERE id = $3`,
-      [tempHash, expiresAt.toISOString(), user.id]
+    return issuePasswordReset(
+      {
+        findUserByEmail: async (normalized) => {
+          const userResult = await query<{ id: string }>('SELECT id FROM users WHERE email = $1', [normalized]);
+          return userResult.rows[0] ?? null;
+        },
+        storeResetToken: async (userId, tokenHash, expiresAt) => {
+          const client = await db.connect();
+          try {
+            await client.query('BEGIN');
+            await client.query(
+              `UPDATE password_reset_tokens
+                  SET used_at = NOW()
+                WHERE user_id = $1
+                  AND used_at IS NULL`,
+              [userId]
+            );
+            await client.query(
+              `INSERT INTO password_reset_tokens (user_id, token_hash, expires_at)
+               VALUES ($1, $2, $3)`,
+              [userId, tokenHash, expiresAt.toISOString()]
+            );
+            await client.query('COMMIT');
+          } catch (error) {
+            await client.query('ROLLBACK');
+            throw error;
+          } finally {
+            client.release();
+          }
+        },
+        sendResetEmail: (input) => deliverPasswordResetEmail(emailConfigFromEnv(), input),
+        log: logReset
+      },
+      email
     );
-
-    return { temporaryPassword, expiresAt: expiresAt.toISOString() };
   },
 
-  resetPassword: async (input: { email: string; temporaryPassword: string; newPassword: string }) => {
-    const normalizedEmail = input.email.trim().toLowerCase();
-    const userResult = await query<DbUser>(
-      `SELECT id, temp_password_hash, temp_password_expires_at
-       FROM users
-       WHERE email = $1`,
-      [normalizedEmail]
-    );
-
-    const user = userResult.rows[0];
-    if (!user || !user.temp_password_hash) {
-      throw createError(400, 'No hay una solicitud de recuperación activa para este correo.');
-    }
-
-    if (!user.temp_password_expires_at || user.temp_password_expires_at.getTime() <= Date.now()) {
-      throw createError(400, 'La clave temporal expiró, solicita una nueva.');
-    }
-
-    const matches = await comparePassword(input.temporaryPassword, user.temp_password_hash);
-    if (!matches) {
-      throw createError(400, 'La clave temporal no coincide.');
-    }
-
+  resetPassword: async (input: { token: string; newPassword: string }) => {
+    await ensurePasswordResetTable();
     const newPasswordHash = await hashPassword(input.newPassword);
-    await query(
-      `UPDATE users
-       SET password_hash = $1,
-           temp_password_hash = NULL,
-           temp_password_expires_at = NULL,
-           updated_at = NOW()
-       WHERE id = $2`,
-      [newPasswordHash, user.id]
-    );
+    const client = await db.connect();
+
+    try {
+      await client.query('BEGIN');
+      await completePasswordReset(client, {
+        tokenHash: hashResetToken(input.token),
+        newPasswordHash
+      });
+      await client.query('COMMIT');
+    } catch (error) {
+      await client.query('ROLLBACK');
+      if (error instanceof InvalidResetTokenError) {
+        throw createError(400, INVALID_RESET_MESSAGE);
+      }
+      throw error;
+    } finally {
+      client.release();
+    }
   }
 };

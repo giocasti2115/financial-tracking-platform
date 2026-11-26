@@ -9,6 +9,9 @@ import { registerRoutes } from './routes/index.js';
 
 const app = express();
 app.set('etag', false);
+// Railway termina TLS y reenvía el cliente en X-Forwarded-For. Sin esto,
+// el límite de intentos vería una sola IP para todo el tráfico.
+app.set('trust proxy', 1);
 
 const normalizeOrigin = (origin: string) => origin.replace(/\/$/, '');
 
