@@ -1,4 +1,4 @@
-package com.aureafinanzas.app;
+package com.aureafinanzas.mobile;
 
 import com.getcapacitor.BridgeActivity;
 

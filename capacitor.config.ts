@@ -6,11 +6,11 @@ import type { CapacitorConfig } from "@capacitor/cli"
  * https://app.aureafinanzas.com dentro del WebView es el shell remoto que
  * Apple trata como sitio reempaquetado.
  *
- * El id `com.aureafinanzas.app` es distinto del paquete Expo
- * `com.aureafinanzas.mobile`. Hay que fijar uno solo antes de Play Console.
+ * El id es `com.aureafinanzas.mobile`, el mismo de la app Expo, para una sola
+ * ficha en Google Play y en el App Store.
  */
 const config: CapacitorConfig = {
-  appId: "com.aureafinanzas.app",
+  appId: "com.aureafinanzas.mobile",
   appName: "Áurea Finanzas",
   webDir: "out",
   server: {
