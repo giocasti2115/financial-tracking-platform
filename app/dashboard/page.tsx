@@ -15,10 +15,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { useQuery } from "@tanstack/react-query"
 import { apiClient } from "@/lib/api-client"
+import { useEntitlements } from "@/components/entitlements/use-entitlements"
+import { PremiumPaywall } from "@/components/entitlements/premium-gate"
 
 export default function DashboardPage() {
   const { user, loading: authLoading } = useAuth()
+  const { canAccess } = useEntitlements()
   const router = useRouter()
+  const showDebts = canAccess("debts")
+  const showPatrimony = canAccess("patrimony")
+  const showQuincena = canAccess("quincena")
 
   const {
     data: expenses = [],
@@ -153,7 +159,13 @@ export default function DashboardPage() {
 
         {/* Summary Cards */}
         <div className="grid gap-4 grid-cols-1 md:grid-cols-3">
-          {summaryCards.map((card) => (
+          {summaryCards
+            .filter((card) => {
+              if (card.key === "debts") return showDebts
+              if (card.key === "patrimony") return showPatrimony
+              return true
+            })
+            .map((card) => (
             <Card
               key={card.key}
               className={`${card.background} ${card.border} ${card.shadow} border rounded-2xl backdrop-blur-sm`}
@@ -172,13 +184,21 @@ export default function DashboardPage() {
           ))}
         </div>
 
-        <MetricsVisualization incomes={incomes} expenses={expenses} debts={debts} assets={assets} />
+        <MetricsVisualization
+          incomes={incomes}
+          expenses={expenses}
+          debts={debts}
+          assets={assets}
+          showDebtCoverage={showDebts}
+        />
 
         {/* Main Content Grid */}
         <div className="grid gap-6 lg:grid-cols-2">
-          {quincenalSummary && <QuincenalOverview summary={quincenalSummary} />}
-          <DebtSummary debts={debts} />
+          {showQuincena && quincenalSummary && <QuincenalOverview summary={quincenalSummary} />}
+          {showDebts && <DebtSummary debts={debts} />}
         </div>
+
+        {(!showDebts || !showPatrimony || !showQuincena) && <PremiumPaywall feature="quincena" />}
 
         {/* Assets Overview */}
         <Card className="rounded-2xl border-[#f0e2cf] bg-[#fffaf4] shadow-sm">

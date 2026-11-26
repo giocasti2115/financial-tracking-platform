@@ -20,9 +20,12 @@ import { useQuery } from "@tanstack/react-query"
 import { apiClient } from "@/lib/api-client"
 import { clampFinancialYear, getFinancialYears } from "@/lib/utils"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import { useEntitlements } from "@/components/entitlements/use-entitlements"
+import { PremiumPaywall } from "@/components/entitlements/premium-gate"
 
 export default function ProjectionsPage() {
   const { user, loading: authLoading } = useAuth()
+  const { canAccess } = useEntitlements()
   const router = useRouter()
   const [projectionMonths, setProjectionMonths] = useState(12)
   const [reportYear, setReportYear] = useState(clampFinancialYear(new Date().getFullYear()))
@@ -70,6 +73,16 @@ export default function ProjectionsPage() {
   )
 
   const isLoading = authLoading || debtsLoading || expensesLoading || incomesLoading
+
+  if (!canAccess("projections")) {
+    return (
+      <DashboardLayout>
+        <PageShell>
+          <PremiumPaywall feature="projections" />
+        </PageShell>
+      </DashboardLayout>
+    )
+  }
 
   if (isLoading) {
     return (

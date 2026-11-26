@@ -17,6 +17,8 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { apiClient } from "@/lib/api-client"
+import { useEntitlements } from "@/components/entitlements/use-entitlements"
+import { PremiumGate } from "@/components/entitlements/premium-gate"
 import { clampFinancialYear, parseDateInput } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
 import { Progress } from "@/components/ui/progress"
@@ -24,6 +26,7 @@ import { Progress } from "@/components/ui/progress"
 export default function ExpensesPage() {
   const { toast } = useToast()
   const { user, loading: authLoading } = useAuth()
+  const { canAccess } = useEntitlements()
   const router = useRouter()
   const queryClient = useQueryClient()
   const filterTemplate = useMemo(
@@ -167,7 +170,9 @@ export default function ExpensesPage() {
       asset_id: newExpense.asset_id ?? null,
     })
 
-    setPropagateContext({ mode: "add", expense: createdExpense as Expense })
+    if (canAccess("recurringClone")) {
+      setPropagateContext({ mode: "add", expense: createdExpense as Expense })
+    }
   }
 
   const handleDeleteExpense = async (id: string) => {
@@ -189,7 +194,9 @@ export default function ExpensesPage() {
       },
     })
 
-    setPropagateContext({ mode: "edit", expense: updatedExpense })
+    if (canAccess("recurringClone")) {
+      setPropagateContext({ mode: "edit", expense: updatedExpense })
+    }
   }
 
   const handleCloneExpenses = async (clonedExpenses: Omit<Expense, "id" | "created_at" | "updated_at">[]) => {
@@ -380,7 +387,9 @@ export default function ExpensesPage() {
           </div>
           <div className="flex flex-wrap gap-2 w-full sm:w-auto">
             {/* Clone button */}
-            <CloneExpensesDialog expenses={expenses} onClone={handleCloneExpenses} />
+            <PremiumGate feature="recurringClone" variant="compact">
+              <CloneExpensesDialog expenses={expenses} onClone={handleCloneExpenses} />
+            </PremiumGate>
             <AddExpenseDialog onAdd={handleAddExpense} debts={debts} assets={assets} />
           </div>
         </div>

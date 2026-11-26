@@ -20,6 +20,8 @@ import { apiClient, type NewMicroExpensePayload } from "@/lib/api-client"
 import type { MicroExpense, MicroExpenseSummary as SummaryType } from "@/lib/types"
 import { useToast } from "@/hooks/use-toast"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import { useEntitlements } from "@/components/entitlements/use-entitlements"
+import { PremiumPaywall } from "@/components/entitlements/premium-gate"
 
 const currentMonthValue = format(new Date(), "yyyy-MM")
 
@@ -28,6 +30,7 @@ export default function MicroExpensesPage() {
   const queryClient = useQueryClient()
   const { toast } = useToast()
   const { user, loading: authLoading } = useAuth()
+  const { canAccess } = useEntitlements()
   const [selectedMonth, setSelectedMonth] = useState(currentMonthValue)
   const [deletingId, setDeletingId] = useState<string | null>(null)
 
@@ -121,6 +124,16 @@ export default function MicroExpensesPage() {
 
   const isBootstrapping = authLoading || (!authLoading && !user)
   const summaryLoading = summaryPending && !summary
+
+  if (!canAccess("microExpenses")) {
+    return (
+      <DashboardLayout>
+        <PageShell>
+          <PremiumPaywall feature="microExpenses" />
+        </PageShell>
+      </DashboardLayout>
+    )
+  }
 
   if (isBootstrapping) {
     return (

@@ -13,6 +13,7 @@ interface MetricsVisualizationProps {
   expenses: Expense[]
   debts: Debt[]
   assets: Asset[]
+  showDebtCoverage?: boolean
 }
 
 const currencyFormatter = new Intl.NumberFormat("es-CO", {
@@ -50,7 +51,13 @@ const timeframeConfig: Record<Timeframe, { label: string; description: string; m
 
 const timeframeOrder: Timeframe[] = ["12m", "6m", "3m", "1m"]
 
-export function MetricsVisualization({ incomes, expenses, debts, assets }: MetricsVisualizationProps) {
+export function MetricsVisualization({
+  incomes,
+  expenses,
+  debts,
+  assets,
+  showDebtCoverage = true,
+}: MetricsVisualizationProps) {
   const incomeGradientId = useId()
   const expenseGradientId = useId()
   const [timeframe, setTimeframe] = useState<Timeframe>("6m")
@@ -284,7 +291,7 @@ export function MetricsVisualization({ incomes, expenses, debts, assets }: Metri
 
           <div className="space-y-4">
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
-              {stats.map((stat) => (
+              {(showDebtCoverage ? stats : stats.filter((stat) => stat.title !== "Cobertura de Pasivos")).map((stat) => (
                 <StatsCard key={stat.title} {...stat} className="rounded-2xl" />
               ))}
             </div>
